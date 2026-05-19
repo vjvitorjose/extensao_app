@@ -68,14 +68,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
             title: const Text('Compartilhar localização', style: TextStyle(fontSize: 15)),
             value: locShared,
             onChanged: (val) => setState(() => locShared = val),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
             title: const Text('Alertas por push', style: TextStyle(fontSize: 15)),
             value: pushAlerts,
             onChanged: (val) => setState(() => pushAlerts = val),

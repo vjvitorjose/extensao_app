@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 
                 const Text('SafeHer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                const Text('Segurança feminina na sua cidade', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                const Text('Segurança na sua cidade', style: TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(height: 28),
 
                 Container(
@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: const [
                       Icon(Icons.check_circle_outline, color: Color(0xFF27500A), size: 16),
                       SizedBox(width: 6),
-                      Text('Acesso exclusivo para mulheres', style: TextStyle(color: Color(0xFF27500A), fontSize: 12, fontWeight: FontWeight.w500)),
+                      //Text('Acesso exclusivo para mulheres', style: TextStyle(color: Color(0xFF27500A), fontSize: 12, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 12),
                 const Text(
-                  'Ao entrar, você confirma que se identifica\ncomo mulher e aceita os termos de uso.',
+                  'Ao entrar, você confirma sua identidade\n e aceita os termos de uso.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
