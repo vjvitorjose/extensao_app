@@ -44,7 +44,7 @@ jobs:
           # Cria um arquivo de configuração mínimo para o build engine da Vercel
           echo '{"version": 3}' > .vercel/output/config.json
 
-       Tar: Install Vercel CLI
+      - name: Install Vercel CLI
         run: npm install -g vercel
 
       - name: Pull Vercel Environment Information
