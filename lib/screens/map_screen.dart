@@ -3,7 +3,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../theme/app_colors.dart';
-import 'sos_screen.dart';
 
 bool _modalAberto = false; // <-- NOVA VARIÁVEL
 
