@@ -37,7 +37,14 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release
 
-      - name: Install Vercel CLI
+      - name: Prepare Vercel Output
+        run: |
+          mkdir -p .vercel/output/static
+          cp -r build/web/* .vercel/output/static/
+          # Cria um arquivo de configuração mínimo para o build engine da Vercel
+          echo '{"version": 3}' > .vercel/output/config.json
+
+       Tar: Install Vercel CLI
         run: npm install -g vercel
 
       - name: Pull Vercel Environment Information
