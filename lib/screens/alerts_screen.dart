@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // Permite checar se é Web
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart'; // Para Celulares
-import 'package:http/http.dart' as http; // Para Navegador (Web)
-import 'dart:convert';
 import '../theme/app_colors.dart';
 
 class AlertsScreen extends StatefulWidget {
@@ -45,10 +41,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
       Position posicaoAtual = await Geolocator.getCurrentPosition();
 
+      // Busca os alertas do banco ordendados pelo mais recente
       final resposta = await supabase
           .from('danger_reports')
           .select()
-          .order('data_hora', ascending: false);
+          .order('criado_em', ascending: false);
 
       List<Map<String, dynamic>> alertasFiltrados = [];
 
@@ -56,6 +53,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
         double latAlerta = alerta['latitude'];
         double lngAlerta = alerta['longitude'];
 
+        // Mantemos o cálculo apenas para filtrar o raio de 2km
         double distanciaEmMetros = Geolocator.distanceBetween(
           posicaoAtual.latitude,
           posicaoAtual.longitude,
@@ -64,65 +62,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
         );
 
         if (distanciaEmMetros <= 2000) {
-          String enderecoFormatado = 'Endereço desconhecido';
-
-          // --- INÍCIO DA LÓGICA HÍBRIDA ---
-          try {
-            if (kIsWeb) {
-              // 1. SE FOR NAVEGADOR (WEB): Usa a API do OpenStreetMap
-              final url = Uri.parse(
-                'https://nominatim.openstreetmap.org/reverse?format=json&lat=$latAlerta&lon=$lngAlerta&zoom=18&addressdetails=1',
-              );
-
-              final response = await http.get(
-                url,
-                headers: {'User-Agent': 'SafeHerApp/1.0'},
-              );
-
-              if (response.statusCode == 200) {
-                final data = json.decode(response.body);
-                if (data != null && data['address'] != null) {
-                  final address = data['address'];
-
-                  String rua = address['road'] ?? address['pedestrian'] ?? '';
-                  String bairro =
-                      address['suburb'] ?? address['neighbourhood'] ?? '';
-
-                  if (rua.isNotEmpty && bairro.isNotEmpty) {
-                    enderecoFormatado = '$rua, $bairro';
-                  } else if (rua.isNotEmpty) {
-                    enderecoFormatado = rua;
-                  }
-                }
-              }
-            } else {
-              // 2. SE FOR CELULAR (ANDROID/IOS): Usa os serviços nativos
-              List<Placemark> placemarks = await placemarkFromCoordinates(
-                latAlerta,
-                lngAlerta,
-              );
-              if (placemarks.isNotEmpty) {
-                Placemark place = placemarks[0];
-
-                String rua = place.street ?? '';
-                String bairro = place.subLocality ?? '';
-
-                if (rua.isNotEmpty && bairro.isNotEmpty) {
-                  enderecoFormatado = '$rua, $bairro';
-                } else if (rua.isNotEmpty) {
-                  enderecoFormatado = rua;
-                }
-              }
-            }
-          } catch (e) {
-            debugPrint('Erro ao buscar endereço: $e');
-          }
-          // --- FIM DA LÓGICA HÍBRIDA ---
-
           alertasFiltrados.add({
             ...alerta,
             'distancia': distanciaEmMetros,
-            'endereco': enderecoFormatado,
+            // Fallback caso existam registros antigos no banco com a coluna de endereço nula
+            'endereco': alerta['endereco'] ?? 'Endereço não informado',
           });
         }
       }
@@ -192,11 +136,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   Widget _buildAlertCard(Map<String, dynamic> alerta) {
     final estilo = _obterEstiloCategoria(alerta['tipo_perigo'] ?? '');
-    final tempo = _calcularTempoAtras(alerta['data_hora']);
+    final tempo = _calcularTempoAtras(alerta['criado_em']);
     final distancia = _formatarDistancia(alerta['distancia']);
 
     final descricao = alerta['descricao'] ?? 'Sem descrição detalhada.';
-    final endereco = alerta['endereco'] ?? 'Endereço não encontrado';
+    final endereco = alerta['endereco'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

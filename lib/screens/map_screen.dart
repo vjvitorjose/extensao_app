@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../theme/app_colors.dart';
 
-bool _modalAberto = false; // <-- NOVA VARIÁVEL
+bool _modalAberto = false;
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -115,9 +119,12 @@ class _MapScreenState extends State<MapScreen> {
     return marcadores;
   }
 
-  Future<void> _salvarAlerta(String categoriaVisual, String descricao) async {
+  Future<void> _salvarAlerta(
+    String categoriaVisual,
+    String descricao,
+    bool isAnonimo,
+  ) async {
     final user = supabase.auth.currentUser;
-    if (user == null) return;
 
     String tipoBanco = 'area_deserta';
     if (categoriaVisual == 'Assédio') tipoBanco = 'assedio';
@@ -129,7 +136,6 @@ class _MapScreenState extends State<MapScreen> {
       double lat;
       double lng;
 
-      // Se tiver pino manual, usa ele. Se não, busca o GPS.
       if (_localSelecionado != null) {
         lat = _localSelecionado!.latitude;
         lng = _localSelecionado!.longitude;
@@ -139,15 +145,58 @@ class _MapScreenState extends State<MapScreen> {
         lng = posicao.longitude;
       }
 
+      // --- INÍCIO DA LÓGICA HÍBRIDA DE ENDEREÇO ---
+      String? enderecoDescoberto;
+      try {
+        if (kIsWeb) {
+          final url = Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1',
+          );
+          final response = await http.get(
+            url,
+            headers: {'User-Agent': 'SafeHerApp/1.0'},
+          );
+
+          if (response.statusCode == 200) {
+            final data = json.decode(response.body);
+            if (data != null && data['address'] != null) {
+              final address = data['address'];
+              String rua = address['road'] ?? address['pedestrian'] ?? '';
+              String bairro =
+                  address['suburb'] ?? address['neighbourhood'] ?? '';
+              enderecoDescoberto = (rua.isNotEmpty && bairro.isNotEmpty)
+                  ? '$rua, $bairro'
+                  : rua;
+            }
+          }
+        } else {
+          List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+          if (placemarks.isNotEmpty) {
+            Placemark place = placemarks[0];
+            String rua = place.street ?? '';
+            String bairro = place.subLocality ?? '';
+            enderecoDescoberto = (rua.isNotEmpty && bairro.isNotEmpty)
+                ? '$rua, $bairro'
+                : rua;
+          }
+        }
+      } catch (e) {
+        debugPrint('Não foi possível obter o endereço: $e');
+      }
+      // --- FIM DA LÓGICA HÍBRIDA DE ENDEREÇO ---
+
+      // Lógica do anonimato: se for anônimo, passamos null. Se não, passamos o id do usuário logado.
+      final idParaSalvar = isAnonimo ? null : user?.id;
+
       await supabase.from('danger_reports').insert({
-        'usuario_id': user.id,
+        'usuario_id': idParaSalvar,
         'tipo_perigo': tipoBanco,
         'descricao': descricao.isEmpty ? null : descricao,
         'latitude': lat,
         'longitude': lng,
+        'endereco': enderecoDescoberto, // <-- Salvando o endereço direto no BD!
       });
 
-      // Limpa a seleção após salvar
       setState(() {
         _localSelecionado = null;
       });
@@ -178,6 +227,7 @@ class _MapScreenState extends State<MapScreen> {
 
     String? categoriaSelecionada;
     final descricaoController = TextEditingController();
+    bool relatoAnonimo = false;
 
     // Texto dinâmico para avisar a usuária de onde o alerta está vindo
     String textoOrigemLocal = _localSelecionado != null
@@ -288,6 +338,32 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     maxLines: 3,
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // --- Botão de Anonimato ---
+                  SwitchListTile(
+                    title: const Text(
+                      'Relatar anonimamente',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Seu nome e perfil não serão vinculados a este alerta.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: relatoAnonimo,
+                    activeColor: AppColors.primary,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (bool valor) {
+                      setModalState(() {
+                        relatoAnonimo = valor;
+                      });
+                    },
+                  ),
+
                   const SizedBox(height: 16),
 
                   SizedBox(
@@ -309,6 +385,7 @@ class _MapScreenState extends State<MapScreen> {
                               _salvarAlerta(
                                 categoriaSelecionada!,
                                 descricaoController.text,
+                                relatoAnonimo,
                               );
                             },
                       child: Text(
