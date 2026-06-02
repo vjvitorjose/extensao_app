@@ -1,8 +1,10 @@
-// Ler o ficheiro .env
-def envProperties = new Properties()
-def envFile = project.rootProject.file('../.env')
+import java.util.Properties
+import java.io.FileInputStream
+
+val envProperties = Properties()
+val envFile = project.rootProject.file("../.env")
 if (envFile.exists()) {
-    envFile.withInputStream { stream ->
+    envFile.inputStream().use { stream ->
         envProperties.load(stream)
     }
 }
@@ -37,7 +39,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders = [googleMapsApiKey: envProperties.getProperty('GOOGLE_MAPS_API_KEY', "")]
+        manifestPlaceholders.putAll(
+            mapOf("googleMapsApiKey" to envProperties.getProperty("GOOGLE_MAPS_API_KEY", ""))
+        )
     }
 
     buildTypes {
