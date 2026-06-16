@@ -1,15 +1,13 @@
 // Supabase Edge Function: panic-alert
 //
-// Recebe a localização da usuária, busca os contatos de emergência dela no banco
-// e dispara um e-mail de alerta para cada contato usando a API do Brevo (camada
-// gratuita: 300 e-mails/dia).
+// Recebe a localização da usuária, busca os contatos de emergência no banco
+// e envia mensagens SMS para os telefones cadastrado(s) usando Twilio.
 //
-// As credenciais NUNCA ficam no app Flutter — só aqui, como secrets do Supabase.
-//
-// Secrets necessários (configurar com `supabase secrets set`):
-//   BREVO_API_KEY   -> chave de API criada no painel do Brevo
-//   SENDER_EMAIL    -> e-mail remetente verificado no Brevo (ex: alerta@seudominio.com)
-//   SENDER_NAME     -> (opcional) nome de exibição, padrão "SafeHer"
+// IMPORTANTE: as credenciais NUNCA ficam no app Flutter — apenas como secrets
+// do Supabase (configurar com `supabase secrets set`). Secrets necessários:
+//   TWILIO_ACCOUNT_SID -> Account SID do Twilio
+//   TWILIO_AUTH_TOKEN  -> Auth Token do Twilio
+//   TWILIO_FROM_NUMBER -> Número Twilio (ex: +15552223333)
 //
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são injetados automaticamente.
 
@@ -59,22 +57,8 @@ Deno.serve(async (req) => {
 
     const { data: contatos } = await admin
       .from("emergency_contacts")
-      .select("nome, email")
+      .select("nome, telefone")
       .eq("profile_id", user.id);
-
-    const destinatarios = (contatos ?? []).filter(
-      (c) => c.email && c.email.trim().length > 0,
-    );
-
-    if (destinatarios.length === 0) {
-      return new Response(
-        JSON.stringify({
-          enviados: 0,
-          aviso: "Nenhum contato com e-mail cadastrado.",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     // 3. Monta a mensagem.
     const temLocal =
@@ -83,57 +67,60 @@ Deno.serve(async (req) => {
       ? `https://www.google.com/maps?q=${latitude},${longitude}`
       : null;
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-        <div style="background:#E24B4A; color:#fff; padding:16px; border-radius:8px 8px 0 0;">
-          <h2 style="margin:0;">🚨 Alerta de Emergência</h2>
-        </div>
-        <div style="border:1px solid #eee; border-top:none; padding:20px; border-radius:0 0 8px 8px;">
-          <p><strong>${nomeUsuaria}</strong> acionou o botão de pânico no aplicativo <strong>SafeHer</strong> e precisa de ajuda.</p>
-          ${
-            linkMapa
-              ? `<p>📍 Localização atual:<br/>
-                 <a href="${linkMapa}" style="color:#D4537E; font-weight:bold;">Abrir no Google Maps</a></p>`
-              : `<p>📍 A localização não pôde ser obtida.</p>`
-          }
-          <p style="color:#888; font-size:12px; margin-top:24px;">
-            Este e-mail foi enviado automaticamente pelo SafeHer. Se você é um contato de
-            emergência desta pessoa, tente contatá-la imediatamente.
-          </p>
-        </div>
-      </div>`;
+    // 4. Envia SMS via Twilio para contatos com telefone, se os secrets estiverem configurados.
+    const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const twilioAuth = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
 
-    // 4. Dispara um e-mail para cada contato via Brevo.
-    const brevoKey = Deno.env.get("BREVO_API_KEY")!;
-    const senderEmail = Deno.env.get("SENDER_EMAIL")!;
-    const senderName = Deno.env.get("SENDER_NAME") ?? "SafeHer";
+    let smsEnviados = 0;
+    const contatosComTelefone = (contatos ?? []).filter(
+      (c) => c.telefone && c.telefone.toString().trim().length > 0,
+    );
 
-    let enviados = 0;
-    for (const contato of destinatarios) {
-      const resp = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "api-key": brevoKey,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify({
-          sender: { name: senderName, email: senderEmail },
-          to: [{ email: contato.email, name: contato.nome ?? undefined }],
-          subject: `🚨 ${nomeUsuaria} acionou um alerta de emergência`,
-          htmlContent: html,
+    if (!twilioSid || !twilioAuth || !twilioFrom) {
+      return new Response(
+        JSON.stringify({
+          enviados_sms: 0,
+          total_telefones: contatosComTelefone.length,
+          aviso: "Twilio não configurado. Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN e TWILIO_FROM_NUMBER.",
         }),
-      });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-      if (resp.ok) {
-        enviados++;
-      } else {
-        console.error("Falha ao enviar e-mail:", await resp.text());
+    const mensagemSms = temLocal
+      ? `🚨 ${nomeUsuaria} acionou um alerta de emergência. Local: ${linkMapa}`
+      : `🚨 ${nomeUsuaria} acionou um alerta de emergência. Localização indisponível.`;
+
+    for (const contato of contatosComTelefone) {
+      const telefone = contato.telefone.toString().trim();
+      try {
+        const body = new URLSearchParams();
+        body.append("From", twilioFrom);
+        body.append("To", telefone);
+        body.append("Body", mensagemSms);
+
+        const resp = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Basic ${btoa(`${twilioSid}:${twilioAuth}`)}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
+          },
+        );
+
+        if (resp.ok) smsEnviados++;
+        else console.error("Falha ao enviar SMS Twilio:", await resp.text());
+      } catch (e) {
+        console.error("Erro ao enviar SMS Twilio para", telefone, e);
       }
     }
 
     return new Response(
-      JSON.stringify({ enviados, total: destinatarios.length }),
+      JSON.stringify({ enviados_sms: smsEnviados, total_telefones: contatosComTelefone.length }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
