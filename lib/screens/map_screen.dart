@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
+import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import 'sos_screen.dart';
@@ -157,6 +159,139 @@ class _MapScreenState extends State<MapScreen> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  bool _enviandoPanico = false;
+
+  // Aciona o botão de pânico: avisa os contatos de emergência por e-mail
+  // (todas as plataformas, via Edge Function) e por SMS (somente Android).
+  Future<void> _acionarPanico() async {
+    if (_enviandoPanico) return;
+
+    // Confirmação rápida para evitar disparos acidentais.
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Acionar emergência?'),
+        content: const Text(
+          'Seus contatos de emergência serão avisados imediatamente com a sua '
+          'localização atual.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.sosRed),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Acionar agora',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => _enviandoPanico = true);
+
+    try {
+      final user = supabase.auth.currentUser;
+
+      // 1. Tenta obter a localização atual (não bloqueia o alerta se falhar).
+      double? lat;
+      double? lng;
+      try {
+        final posicao = await Geolocator.getCurrentPosition();
+        lat = posicao.latitude;
+        lng = posicao.longitude;
+      } catch (e) {
+        debugPrint('Não foi possível obter localização no pânico: $e');
+      }
+
+      // 2. Busca o nome da usuária e os contatos (telefones para o SMS).
+      String nomeUsuaria = 'Uma usuária do SafeHer';
+      List<Map<String, dynamic>> contatos = [];
+      if (user != null) {
+        final perfil = await supabase
+            .from('profiles')
+            .select('nome_completo')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (perfil != null && perfil['nome_completo'] != null) {
+          nomeUsuaria = perfil['nome_completo'];
+        }
+
+        final dadosContatos = await supabase
+            .from('emergency_contacts')
+            .select()
+            .eq('profile_id', user.id);
+        contatos = List<Map<String, dynamic>>.from(dadosContatos);
+      }
+
+      // 3. Dispara os e-mails pelo servidor (Edge Function).
+      await supabase.functions.invoke(
+        'panic-alert',
+        body: {'latitude': lat, 'longitude': lng},
+      );
+
+      // 4. No Android, também envia SMS pelo chip do aparelho.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        await _enviarSmsAndroid(nomeUsuaria, contatos, lat, lng);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🚨 Alerta enviado aos seus contatos de emergência!'),
+            backgroundColor: AppColors.sosRed,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao acionar pânico: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar alerta: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enviandoPanico = false);
+    }
+  }
+
+  Future<void> _enviarSmsAndroid(
+    String nomeUsuaria,
+    List<Map<String, dynamic>> contatos,
+    double? lat,
+    double? lng,
+  ) async {
+    final telephony = Telephony.instance;
+    final permitido = await telephony.requestSmsPermissions ?? false;
+    if (!permitido) return;
+
+    final linkMapa = (lat != null && lng != null)
+        ? 'https://www.google.com/maps?q=$lat,$lng'
+        : 'localização indisponível';
+    final mensagem =
+        '🚨 $nomeUsuaria acionou um alerta de emergência (SafeHer). '
+        'Localização: $linkMapa';
+
+    for (final contato in contatos) {
+      final telefone = (contato['telefone'] ?? '').toString().trim();
+      if (telefone.isEmpty) continue;
+      try {
+        await telephony.sendSms(to: telefone, message: mensagem);
+      } catch (e) {
+        debugPrint('Falha ao enviar SMS para $telefone: $e');
       }
     }
   }
@@ -495,6 +630,34 @@ class _MapScreenState extends State<MapScreen> {
               backgroundColor: AppColors.primary,
               onPressed: () => _abrirModalRisco(context),
               child: const Icon(Icons.add_location_alt, color: Colors.white),
+            ),
+          ),
+
+          // Botão de pânico (SOS) — avisa os contatos de emergência na hora.
+          Positioned(
+            bottom: 24,
+            left: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'panic_btn',
+              backgroundColor: AppColors.sosRed,
+              onPressed: _enviandoPanico ? null : _acionarPanico,
+              icon: _enviandoPanico
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.sos, color: Colors.white),
+              label: Text(
+                _enviandoPanico ? 'Enviando...' : 'SOS',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],

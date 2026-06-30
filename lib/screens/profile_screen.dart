@@ -162,6 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _abrirModalAdicionarContato() async {
     final nomeController = TextEditingController();
     final telefoneController = TextEditingController();
+    final emailController = TextEditingController();
     final parentescoController = TextEditingController();
 
     await showModalBottomSheet(
@@ -198,10 +199,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: telefoneController,
                 decoration: const InputDecoration(
-                  labelText: 'Telefone',
+                  labelText: 'Telefone (para SMS no Android)',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail (para alerta de emergência)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 12),
               TextField(
@@ -233,6 +243,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'profile_id': user.id,
                         'nome': nomeController.text,
                         'telefone': telefoneController.text,
+                        'email': emailController.text.isEmpty
+                            ? null
+                            : emailController.text.trim(),
                         'parentesco': parentescoController.text.isEmpty
                             ? null
                             : parentescoController.text,
