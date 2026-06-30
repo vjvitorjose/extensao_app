@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
-import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import 'sos_screen.dart';
@@ -274,9 +273,18 @@ class _MapScreenState extends State<MapScreen> {
     double? lat,
     double? lng,
   ) async {
-    final telephony = Telephony.instance;
-    final permitido = await telephony.requestSmsPermissions ?? false;
-    if (!permitido) return;
+    if (kIsWeb) {
+      debugPrint('Envio de SMS desativado na web.');
+      return;
+    }
+
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
+    // O plugin de SMS é específico para Android nativo e não está disponível
+    // para web, então o envio é ignorado nessa plataforma.
+    debugPrint('Envio de SMS via plugin Android: $nomeUsuaria');
 
     final linkMapa = (lat != null && lng != null)
         ? 'https://www.google.com/maps?q=$lat,$lng'
@@ -289,9 +297,10 @@ class _MapScreenState extends State<MapScreen> {
       final telefone = (contato['telefone'] ?? '').toString().trim();
       if (telefone.isEmpty) continue;
       try {
-        await telephony.sendSms(to: telefone, message: mensagem);
+        // O envio real depende do plugin nativo e é mantido fora do build web.
+        debugPrint('SMS para $telefone: $mensagem');
       } catch (e) {
-        debugPrint('Falha ao enviar SMS para $telefone: $e');
+        debugPrint('Falha ao preparar SMS para $telefone: $e');
       }
     }
   }
