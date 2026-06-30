@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
+import 'sos_screen.dart';
 
 bool _modalAberto = false;
 
@@ -23,12 +24,9 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   final supabase = Supabase.instance.client;
 
-  LatLng _minhaLocalizacao = const LatLng(-21.1355, -44.2616); // Fallback
-  Set<Marker> _marcadoresSupabase = {};
-
-  // Nova variável para guardar o local clicado manualmente
+  LatLng _minhaLocalizacao = const LatLng(-21.1355, -44.2616);
   LatLng? _localSelecionado;
-
+  bool _usarLocalMarcadoParaAlerta = false;
   bool _carregandoLocalizacao = true;
 
   @override
@@ -39,7 +37,6 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _inicializarMapa() async {
     await _obterLocalizacaoAtual();
-    await _carregarAlertas();
   }
 
   Future<void> _obterLocalizacaoAtual() async {
@@ -65,66 +62,11 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<void> _carregarAlertas() async {
-    try {
-      final resposta = await supabase.from('danger_reports').select();
-
-      Set<Marker> marcadores = {};
-
-      for (var alerta in resposta) {
-        marcadores.add(
-          Marker(
-            markerId: MarkerId(alerta['id'].toString()),
-            position: LatLng(alerta['latitude'], alerta['longitude']),
-            infoWindow: InfoWindow(
-              title: alerta['tipo_perigo']
-                  .toString()
-                  .replaceAll('_', ' ')
-                  .toUpperCase(),
-              snippet: alerta['descricao'] ?? 'Sem descrição',
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueRed,
-            ),
-          ),
-        );
-      }
-
-      setState(() {
-        _marcadoresSupabase = marcadores;
-      });
-    } catch (e) {
-      debugPrint('Erro ao carregar alertas: $e');
-    }
-  }
-
-  // Combina os alertas do banco com o pino manual (se houver)
-  Set<Marker> get _todosOsMarcadores {
-    final marcadores = Set<Marker>.from(_marcadoresSupabase);
-
-    if (_localSelecionado != null) {
-      marcadores.add(
-        Marker(
-          markerId: const MarkerId('pino_manual'),
-          position: _localSelecionado!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueBlue,
-          ), // Pino Azul
-          infoWindow: const InfoWindow(
-            title: 'Local Selecionado',
-            snippet: 'Relatar risco aqui',
-          ),
-        ),
-      );
-    }
-
-    return marcadores;
-  }
-
   Future<void> _salvarAlerta(
     String categoriaVisual,
     String descricao,
     bool isAnonimo,
+    bool usarLocalMarcado,
   ) async {
     final user = supabase.auth.currentUser;
 
@@ -135,19 +77,18 @@ class _MapScreenState extends State<MapScreen> {
     if (categoriaVisual == 'Local suspeito') tipoBanco = 'area_deserta';
 
     try {
-      double lat;
-      double lng;
+      final double lat;
+      final double lng;
 
-      if (_localSelecionado != null) {
+      if (usarLocalMarcado && _localSelecionado != null) {
         lat = _localSelecionado!.latitude;
         lng = _localSelecionado!.longitude;
       } else {
-        Position posicao = await Geolocator.getCurrentPosition();
+        final Position posicao = await Geolocator.getCurrentPosition();
         lat = posicao.latitude;
         lng = posicao.longitude;
       }
 
-      // --- INÍCIO DA LÓGICA HÍBRIDA DE ENDEREÇO ---
       String? enderecoDescoberto;
       try {
         if (kIsWeb) {
@@ -172,9 +113,12 @@ class _MapScreenState extends State<MapScreen> {
             }
           }
         } else {
-          List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+          final List<Placemark> placemarks = await placemarkFromCoordinates(
+            lat,
+            lng,
+          );
           if (placemarks.isNotEmpty) {
-            Placemark place = placemarks[0];
+            final Placemark place = placemarks[0];
             String rua = place.street ?? '';
             String bairro = place.subLocality ?? '';
             enderecoDescoberto = (rua.isNotEmpty && bairro.isNotEmpty)
@@ -185,9 +129,7 @@ class _MapScreenState extends State<MapScreen> {
       } catch (e) {
         debugPrint('Não foi possível obter o endereço: $e');
       }
-      // --- FIM DA LÓGICA HÍBRIDA DE ENDEREÇO ---
 
-      // Lógica do anonimato: se for anônimo, passamos null. Se não, passamos o id do usuário logado.
       final idParaSalvar = isAnonimo ? null : user?.id;
 
       await supabase.from('danger_reports').insert({
@@ -196,14 +138,13 @@ class _MapScreenState extends State<MapScreen> {
         'descricao': descricao.isEmpty ? null : descricao,
         'latitude': lat,
         'longitude': lng,
-        'endereco': enderecoDescoberto, // <-- Salvando o endereço direto no BD!
+        'endereco': enderecoDescoberto,
       });
 
       setState(() {
         _localSelecionado = null;
+        _usarLocalMarcadoParaAlerta = false;
       });
-
-      _carregarAlertas();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -364,15 +305,6 @@ class _MapScreenState extends State<MapScreen> {
     final descricaoController = TextEditingController();
     bool relatoAnonimo = false;
 
-    // Texto dinâmico para avisar a usuária de onde o alerta está vindo
-    String textoOrigemLocal = _localSelecionado != null
-        ? '📍 Local selecionado manualmente no mapa'
-        : '📡 Sua localização atual (GPS)';
-
-    String textoBotao = _localSelecionado != null
-        ? 'Registrar neste local'
-        : 'Registrar com meu GPS';
-
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -382,6 +314,17 @@ class _MapScreenState extends State<MapScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
+            bool usarLocalMarcadoNoModal =
+                _localSelecionado != null && _usarLocalMarcadoParaAlerta;
+
+            final String textoOrigemLocal = usarLocalMarcadoNoModal
+                ? '📍 O alerta será registrado no ponto marcado no mapa'
+                : '📡 O alerta será registrado com sua localização atual (GPS)';
+
+            final String textoBotao = usarLocalMarcadoNoModal
+                ? 'Registrar neste local'
+                : 'Registrar com meu GPS';
+
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -409,8 +352,6 @@ class _MapScreenState extends State<MapScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
-
-                  // Mostra de onde vem a localização
                   Text(
                     textoOrigemLocal,
                     style: TextStyle(
@@ -421,7 +362,48 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
+                  const Text(
+                    'Origem do alerta',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('GPS atual'),
+                        selected: !usarLocalMarcadoNoModal,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              usarLocalMarcadoNoModal = false;
+                            });
+                            setState(() {
+                              _usarLocalMarcadoParaAlerta = false;
+                            });
+                          }
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Ponto marcado'),
+                        selected: usarLocalMarcadoNoModal,
+                        selectedColor: AppColors.primary.withAlpha(30),
+                        onSelected: _localSelecionado == null
+                            ? null
+                            : (selected) {
+                                if (selected) {
+                                  setModalState(() {
+                                    usarLocalMarcadoNoModal = true;
+                                  });
+                                  setState(() {
+                                    _usarLocalMarcadoParaAlerta = true;
+                                  });
+                                }
+                              },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -460,7 +442,6 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 16),
                   TextField(
                     controller: descricaoController,
@@ -473,10 +454,7 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     maxLines: 3,
                   ),
-
                   const SizedBox(height: 16),
-
-                  // --- Botão de Anonimato ---
                   SwitchListTile(
                     title: const Text(
                       'Relatar anonimamente',
@@ -498,9 +476,7 @@ class _MapScreenState extends State<MapScreen> {
                       });
                     },
                   ),
-
                   const SizedBox(height: 16),
-
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -521,6 +497,7 @@ class _MapScreenState extends State<MapScreen> {
                                 categoriaSelecionada!,
                                 descricaoController.text,
                                 relatoAnonimo,
+                                usarLocalMarcadoNoModal,
                               );
                             },
                       child: Text(
@@ -588,36 +565,63 @@ class _MapScreenState extends State<MapScreen> {
               target: _minhaLocalizacao,
               zoom: 15.0,
             ),
-            markers: _todosOsMarcadores,
+            markers: _localSelecionado != null
+                ? {
+                    Marker(
+                      markerId: const MarkerId('pino_manual'),
+                      position: _localSelecionado!,
+                      icon: BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueBlue,
+                      ),
+                      infoWindow: const InfoWindow(
+                        title: 'Local selecionado',
+                        snippet: 'Relatar risco aqui',
+                      ),
+                    ),
+                  }
+                : {},
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             zoomControlsEnabled: false,
             onTap: (LatLng position) {
-              // Se o modal estiver aberto, ignora o clique no mapa!
               if (_modalAberto) return;
-
               setState(() {
                 _localSelecionado = position;
+                _usarLocalMarcadoParaAlerta = true;
               });
             },
           ),
-
           if (_carregandoLocalizacao)
             const Center(child: CircularProgressIndicator()),
-
-          // Botãozinho para limpar o pino manual caso a usuária desista
           if (_localSelecionado != null)
             Positioned(
-              bottom: 96,
+              bottom: 132,
               right: 24,
               child: FloatingActionButton.small(
                 heroTag: 'clear_btn',
                 backgroundColor: Colors.white,
-                onPressed: () => setState(() => _localSelecionado = null),
+                onPressed: () => setState(() {
+                  _localSelecionado = null;
+                  _usarLocalMarcadoParaAlerta = false;
+                }),
                 child: const Icon(Icons.close, color: Colors.black54),
               ),
             ),
-
+          Positioned(
+            bottom: 24,
+            left: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'sos_btn',
+              backgroundColor: AppColors.sosRed,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SosScreen()),
+                );
+              },
+              label: const Text('SOS', style: TextStyle(color: Colors.white)),
+            ),
+          ),
           Positioned(
             bottom: 24,
             right: 16,

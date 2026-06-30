@@ -40,8 +40,9 @@ dependencies:
   geolocator: ^14.0.2
   geocoding: ^4.0.0
   http: ^1.6.0
-  # Envio de SMS pelo chip do aparelho (somente Android) para o botão de pânico.
-  another_telephony: ^0.4.0
+  record: ^6.0.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.0.0
 
 dev_dependencies:
   flutter_test:
