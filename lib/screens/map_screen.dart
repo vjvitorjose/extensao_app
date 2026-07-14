@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
-import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import 'sos_screen.dart';
@@ -177,7 +176,7 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Acionar emergência?'),
         content: const Text(
           'Seus contatos de emergência serão avisados imediatamente com a sua '
-          'localização atual.',
+          'localização atual e a gravação de áudio será iniciada.',
         ),
         actions: [
           TextButton(
@@ -197,6 +196,13 @@ class _MapScreenState extends State<MapScreen> {
     );
 
     if (confirmar != true) return;
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SosScreen(autoStart: true)),
+      );
+    }
 
     setState(() => _enviandoPanico = true);
 
@@ -240,10 +246,8 @@ class _MapScreenState extends State<MapScreen> {
         body: {'latitude': lat, 'longitude': lng},
       );
 
-      // 4. No Android, também envia SMS pelo chip do aparelho.
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        await _enviarSmsAndroid(nomeUsuaria, contatos, lat, lng);
-      }
+      // 4. Adiciona os SMS na fila do Supabase para serem enviados por outro dispositivo.
+      await _enviarSmsFila(nomeUsuaria, contatos, lat, lng);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -268,16 +272,12 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _enviarSmsAndroid(
+  Future<void> _enviarSmsFila(
     String nomeUsuaria,
     List<Map<String, dynamic>> contatos,
     double? lat,
     double? lng,
   ) async {
-    final telephony = Telephony.instance;
-    final permitido = await telephony.requestSmsPermissions ?? false;
-    if (!permitido) return;
-
     final linkMapa = (lat != null && lng != null)
         ? 'https://www.google.com/maps?q=$lat,$lng'
         : 'localização indisponível';
@@ -286,12 +286,18 @@ class _MapScreenState extends State<MapScreen> {
         'Localização: $linkMapa';
 
     for (final contato in contatos) {
-      final telefone = (contato['telefone'] ?? '').toString().trim();
-      if (telefone.isEmpty) continue;
+      final telefoneBruto = (contato['telefone'] ?? '').toString();
+      final telefoneNumerico = telefoneBruto.replaceAll(RegExp(r'\D'), '');
+
+      if (telefoneNumerico.isEmpty) continue;
+
       try {
-        await telephony.sendSms(to: telefone, message: mensagem);
+        await supabase.from('sms_queue').insert({
+          'numero': int.parse(telefoneNumerico),
+          'mensagem': mensagem,
+        });
       } catch (e) {
-        debugPrint('Falha ao enviar SMS para $telefone: $e');
+        debugPrint('Falha ao enfileirar SMS para $telefoneBruto: $e');
       }
     }
   }
@@ -607,21 +613,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: const Icon(Icons.close, color: Colors.black54),
               ),
             ),
-          Positioned(
-            bottom: 24,
-            left: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'sos_btn',
-              backgroundColor: AppColors.sosRed,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SosScreen()),
-                );
-              },
-              label: const Text('SOS', style: TextStyle(color: Colors.white)),
-            ),
-          ),
+
           Positioned(
             bottom: 24,
             right: 16,
@@ -650,7 +642,7 @@ class _MapScreenState extends State<MapScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.sos, color: Colors.white),
+                  : const Icon(Icons.campaign, color: Colors.white),
               label: Text(
                 _enviandoPanico ? 'Enviando...' : 'SOS',
                 style: const TextStyle(
