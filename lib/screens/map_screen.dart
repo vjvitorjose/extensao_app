@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
+import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import '../services/local_audio_service.dart';
@@ -286,7 +287,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _enviarSmsFila(
+  Future<void> _enviarSmsAndroid(
     String nomeUsuaria,
     List<Map<String, dynamic>> contatos,
     double? lat,
@@ -632,7 +633,21 @@ class _MapScreenState extends State<MapScreen> {
                 child: const Icon(Icons.close, color: Colors.black54),
               ),
             ),
-
+          Positioned(
+            bottom: 24,
+            left: 16,
+            child: FloatingActionButton.extended(
+              heroTag: 'sos_btn',
+              backgroundColor: AppColors.sosRed,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SosScreen()),
+                );
+              },
+              label: const Text('SOS', style: TextStyle(color: Colors.white)),
+            ),
+          ),
           Positioned(
             bottom: 24,
             right: 16,
