@@ -64,29 +64,37 @@ class LocalAudioService {
   String? _currentLocationLabel;
 
   bool get isRecording => _isRecording;
+  DateTime? get recordingStartedAt => _recordingStartedAt;
 
   Future<String> get storageDirectoryPath async {
     final dir = await getApplicationDocumentsDirectory();
-    return '${dir.path}/audio_recordings';
+    final targetDir = Directory('${dir.path}/audio_recordings');
+    if (!await targetDir.exists()) {
+      await targetDir.create(recursive: true);
+    }
+    return targetDir.path;
   }
 
   Future<String> getStorageLocationDescription() async {
     if (Platform.isAndroid) {
-      final dir = await getApplicationDocumentsDirectory();
-      return 'Android: ${dir.path}/audio_recordings';
+      return 'Android (Pasta Download > audio_recordings)';
     }
     if (Platform.isIOS) {
-      final dir = await getApplicationDocumentsDirectory();
-      return 'iOS: ${dir.path}/audio_recordings';
+      return 'iOS (App Arquivos > Extensao App > audio_recordings)';
     }
-    return 'Desktop: ${await storageDirectoryPath}';
+    return 'Pasta de gravações: ${await storageDirectoryPath}';
   }
 
   Future<bool> requestMicrophonePermission() async {
-    if (await _audioRecorder.hasPermission()) {
-      return true;
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        return true;
+      }
+      return await _audioRecorder.hasPermission(request: true);
+    } catch (e) {
+      debugPrint('Erro ao solicitar permissão de microfone: $e');
+      return false;
     }
-    return _audioRecorder.hasPermission(request: true);
   }
 
   Future<bool> startRecording({required String locationLabel}) async {
@@ -94,30 +102,23 @@ class LocalAudioService {
       return false;
     }
 
-    final hasPermission = await requestMicrophonePermission();
-    if (!hasPermission) {
-      debugPrint('Microfone: permissão negada');
-      return false;
-    }
-
-    final storageDirPath = await storageDirectoryPath;
-    final storageDir = Directory(storageDirPath);
-    if (!await storageDir.exists()) {
-      await storageDir.create(recursive: true);
-    }
-
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final fileName = 'gravacao_$timestamp.m4a';
-    final filePath = '$storageDirPath/$fileName';
-
     try {
+      final hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        debugPrint('Microfone: permissão negada');
+        return false;
+      }
+
+      final storageDirPath = await storageDirectoryPath;
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final fileName = 'gravacao_$timestamp.m4a';
+      final filePath = '$storageDirPath/$fileName';
+
       await _audioRecorder.start(
-        RecordConfig(
+        const RecordConfig(
           encoder: AudioEncoder.aacLc,
           bitRate: 128000,
           sampleRate: 44100,
-          numChannels: 2,
-          noiseSuppress: true,
         ),
         path: filePath,
       );
@@ -128,10 +129,11 @@ class LocalAudioService {
       _currentFileName = fileName;
       _currentLocationLabel = locationLabel;
 
-      debugPrint('Gravação iniciada: $filePath');
+      debugPrint('Gravação iniciada com sucesso: $filePath');
       return true;
     } catch (e) {
-      debugPrint('Erro ao iniciar gravação: $e');
+      debugPrint('Erro ao iniciar gravação de áudio: $e');
+      _isRecording = false;
       return false;
     }
   }
@@ -178,9 +180,27 @@ class LocalAudioService {
         debugPrint('Aviso: arquivo está vazio, microfone pode não ter permissão');
       }
 
+      String finalSavedPath = filePath;
+
+      // Copia para a pasta pública /storage/emulated/0/Download/audio_recordings no Android
+      if (Platform.isAndroid) {
+        try {
+          final publicDownloadDir = Directory('/storage/emulated/0/Download/audio_recordings');
+          if (!await publicDownloadDir.exists()) {
+            await publicDownloadDir.create(recursive: true);
+          }
+          final targetPath = '${publicDownloadDir.path}/$fileName';
+          final copiedFile = await file.copy(targetPath);
+          finalSavedPath = copiedFile.path;
+          debugPrint('Cópia salva com sucesso em Download: $finalSavedPath');
+        } catch (e) {
+          debugPrint('Não foi possível copiar para /storage/emulated/0/Download: $e');
+        }
+      }
+
       final recording = LocalRecording(
         id: DateTime.now().toIso8601String(),
-        filePath: filePath,
+        filePath: finalSavedPath,
         fileName: fileName,
         durationMs: duration,
         locationLabel: locationLabel,

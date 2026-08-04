@@ -3,6 +3,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Necessária para o botão de pânico enviar SMS pelo chip do aparelho. -->
     <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- Permissões para gravação e salvamento de áudio acessíveis no aparelho -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
         android:label="extensao_app"
         android:name="${applicationName}"

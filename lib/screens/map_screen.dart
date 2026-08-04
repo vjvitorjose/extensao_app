@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
+import '../services/local_audio_service.dart';
 import 'sos_screen.dart';
 
 bool _modalAberto = false;
@@ -245,12 +246,23 @@ class _MapScreenState extends State<MapScreen> {
         await _enviarSmsAndroid(nomeUsuaria, contatos, lat, lng);
       }
 
+      // 5. Inicia a gravação local de áudio automaticamente.
+      await LocalAudioService.instance.startRecording(
+        locationLabel: 'SOS acionado em ${DateTime.now().toLocal().toString().split('.')[0]}',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🚨 Alerta enviado aos seus contatos de emergência!'),
+            content: Text('🚨 Alerta enviado e gravação de áudio iniciada!'),
             backgroundColor: AppColors.sosRed,
           ),
+        );
+
+        // Abre a tela de SOS onde a gravação de áudio está ativa
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SosScreen()),
         );
       }
     } catch (e) {
@@ -274,25 +286,32 @@ class _MapScreenState extends State<MapScreen> {
     double? lat,
     double? lng,
   ) async {
-    final telephony = Telephony.instance;
-    final permitido = await telephony.requestSmsPermissions ?? false;
-    if (!permitido) return;
-
-    final linkMapa = (lat != null && lng != null)
-        ? 'https://www.google.com/maps?q=$lat,$lng'
-        : 'localização indisponível';
-    final mensagem =
-        '🚨 $nomeUsuaria acionou um alerta de emergência (SafeHer). '
-        'Localização: $linkMapa';
-
-    for (final contato in contatos) {
-      final telefone = (contato['telefone'] ?? '').toString().trim();
-      if (telefone.isEmpty) continue;
-      try {
-        await telephony.sendSms(to: telefone, message: mensagem);
-      } catch (e) {
-        debugPrint('Falha ao enviar SMS para $telefone: $e');
+    try {
+      final telephony = Telephony.instance;
+      final permitido = await telephony.requestSmsPermissions ?? false;
+      if (!permitido) {
+        debugPrint('Permissão de SMS não concedida pelo usuário.');
+        return;
       }
+
+      final linkMapa = (lat != null && lng != null)
+          ? 'https://www.google.com/maps?q=$lat,$lng'
+          : 'localização indisponível';
+      final mensagem =
+          '🚨 $nomeUsuaria acionou um alerta de emergência (SafeHer). '
+          'Localização: $linkMapa';
+
+      for (final contato in contatos) {
+        final telefone = (contato['telefone'] ?? '').toString().trim();
+        if (telefone.isEmpty) continue;
+        try {
+          await telephony.sendSms(to: telefone, message: mensagem);
+        } catch (e) {
+          debugPrint('Falha ao enviar SMS para $telefone: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Erro ou permissão de SMS negada no Android: $e');
     }
   }
 
@@ -607,21 +626,7 @@ class _MapScreenState extends State<MapScreen> {
                 child: const Icon(Icons.close, color: Colors.black54),
               ),
             ),
-          Positioned(
-            bottom: 24,
-            left: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'sos_btn',
-              backgroundColor: AppColors.sosRed,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SosScreen()),
-                );
-              },
-              label: const Text('SOS', style: TextStyle(color: Colors.white)),
-            ),
-          ),
+
           Positioned(
             bottom: 24,
             right: 16,

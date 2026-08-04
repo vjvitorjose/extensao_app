@@ -24,6 +24,26 @@ class _SosScreenState extends State<SosScreen> {
   void initState() {
     super.initState();
     _loadStorageLocation();
+    _checkActiveRecording();
+  }
+
+  void _checkActiveRecording() {
+    if (_audioService.isRecording) {
+      final start = _audioService.recordingStartedAt;
+      final initialElapsed = start != null ? DateTime.now().difference(start).inSeconds : 0;
+      setState(() {
+        _isTriggered = true;
+        _isRecording = true;
+        _statusText = 'Gravação local iniciada. O áudio fica apenas no seu dispositivo.';
+        _elapsedSeconds = initialElapsed;
+      });
+
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) return;
+        setState(() => _elapsedSeconds++);
+      });
+    }
   }
 
   @override

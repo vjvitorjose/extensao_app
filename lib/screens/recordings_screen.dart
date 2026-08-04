@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/local_audio_service.dart';
 import '../theme/app_colors.dart';
 
@@ -37,6 +38,20 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Gravação excluída do dispositivo.')),
     );
+  }
+
+  Future<void> _shareRecording(LocalRecording recording) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(recording.filePath)],
+        text: 'Áudio de emergência SafeHer: ${recording.fileName}',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao compartilhar áudio: $e')),
+      );
+    }
   }
 
   String _formatDuration(int milliseconds) {
@@ -82,9 +97,18 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
                           Text('Salvo em: ${recording.filePath}'),
                         ],
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _deleteRecording(recording),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.share, color: AppColors.primary),
+                            onPressed: () => _shareRecording(recording),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            onPressed: () => _deleteRecording(recording),
+                          ),
+                        ],
                       ),
                     );
                   },
