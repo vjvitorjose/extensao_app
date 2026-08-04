@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
-import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import '../services/local_audio_service.dart';
@@ -178,7 +177,7 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Acionar emergência?'),
         content: const Text(
           'Seus contatos de emergência serão avisados imediatamente com a sua '
-          'localização atual.',
+          'localização atual e a gravação de áudio será iniciada.',
         ),
         actions: [
           TextButton(
@@ -198,6 +197,13 @@ class _MapScreenState extends State<MapScreen> {
     );
 
     if (confirmar != true) return;
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SosScreen(autoStart: true)),
+      );
+    }
 
     setState(() => _enviandoPanico = true);
 
@@ -280,7 +286,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _enviarSmsAndroid(
+  Future<void> _enviarSmsFila(
     String nomeUsuaria,
     List<Map<String, dynamic>> contatos,
     double? lat,
@@ -655,7 +661,7 @@ class _MapScreenState extends State<MapScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.sos, color: Colors.white),
+                  : const Icon(Icons.campaign, color: Colors.white),
               label: Text(
                 _enviandoPanico ? 'Enviando...' : 'SOS',
                 style: const TextStyle(

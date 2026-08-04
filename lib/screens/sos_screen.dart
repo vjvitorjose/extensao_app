@@ -5,7 +5,8 @@ import '../services/local_audio_service.dart';
 import '../theme/app_colors.dart';
 
 class SosScreen extends StatefulWidget {
-  const SosScreen({super.key});
+  final bool autoStart;
+  const SosScreen({super.key, this.autoStart = false});
 
   @override
   State<SosScreen> createState() => _SosScreenState();
