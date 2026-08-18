@@ -6,7 +6,13 @@ import '../theme/app_colors.dart';
 
 class SosScreen extends StatefulWidget {
   final bool autoStart;
-  const SosScreen({super.key, this.autoStart = false});
+  final bool policeAlerted;
+
+  const SosScreen({
+    super.key,
+    this.autoStart = false,
+    this.policeAlerted = false,
+  });
 
   @override
   State<SosScreen> createState() => _SosScreenState();
@@ -143,6 +149,48 @@ class _SosScreenState extends State<SosScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              if (widget.policeAlerted) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E3A8A),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.local_police, color: Colors.white, size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'POLÍCIA MILITAR (190) NOTIFICADA',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              'Vítima cadastrada no banco de reincidentes. Chamado policial enviado com prioridade alta.',
+                              style: TextStyle(color: Colors.white70, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
               GestureDetector(
                 onTap: _toggleRecording,
                 child: AnimatedContainer(

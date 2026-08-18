@@ -10,6 +10,7 @@ import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import '../services/local_audio_service.dart';
+import '../services/police_alert_service.dart';
 import 'sos_screen.dart';
 
 bool _modalAberto = false;
@@ -166,19 +167,45 @@ class _MapScreenState extends State<MapScreen> {
 
   bool _enviandoPanico = false;
 
-  // Aciona o botão de pânico: avisa os contatos de emergência por e-mail
-  // (todas as plataformas, via Edge Function) e por SMS (somente Android).
+  // Aciona o botão de pânico: avisa os contatos de emergência (e-mail/SMS)
+  // E também a polícia (mockado) caso o CPF conste no banco de vítimas reincidentes.
   Future<void> _acionarPanico() async {
     if (_enviandoPanico) return;
+
+    final user = supabase.auth.currentUser;
+    String nomeUsuaria = 'Uma usuária do SafeHer';
+    String? cpfUsuaria;
+    List<Map<String, dynamic>> contatos = [];
+
+    if (user != null) {
+      final perfil = await supabase
+          .from('profiles')
+          .select('nome_completo, cpf')
+          .eq('id', user.id)
+          .maybeSingle();
+      if (perfil != null) {
+        if (perfil['nome_completo'] != null) nomeUsuaria = perfil['nome_completo'];
+        cpfUsuaria = perfil['cpf'];
+      }
+
+      final dadosContatos = await supabase
+          .from('emergency_contacts')
+          .select()
+          .eq('profile_id', user.id);
+      contatos = List<Map<String, dynamic>>.from(dadosContatos);
+    }
+
+    final isVitimaReincidente = await PoliceAlertService.instance.isCpfCadastradoNoBanco(cpfUsuaria);
 
     // Confirmação rápida para evitar disparos acidentais.
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Acionar emergência?'),
-        content: const Text(
-          'Seus contatos de emergência serão avisados imediatamente com a sua '
-          'localização atual e a gravação de áudio será iniciada.',
+        title: Text(isVitimaReincidente ? 'Acionar Emergência & Polícia 190?' : 'Acionar emergência?'),
+        content: Text(
+          isVitimaReincidente
+              ? '🚨 ATENÇÃO: Seu CPF consta no Banco de Vítimas Reincidentes.\n\nA Polícia Militar (190) E seus contatos de emergência serão avisados imediatamente com a sua localização atual, e a gravação de áudio será iniciada.'
+              : 'Seus contatos de emergência serão avisados imediatamente com a sua localização atual e a gravação de áudio será iniciada.',
         ),
         actions: [
           TextButton(
@@ -199,18 +226,9 @@ class _MapScreenState extends State<MapScreen> {
 
     if (confirmar != true) return;
 
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SosScreen(autoStart: true)),
-      );
-    }
-
     setState(() => _enviandoPanico = true);
 
     try {
-      final user = supabase.auth.currentUser;
-
       // 1. Tenta obter a localização atual (não bloqueia o alerta se falhar).
       double? lat;
       double? lng;
@@ -222,33 +240,25 @@ class _MapScreenState extends State<MapScreen> {
         debugPrint('Não foi possível obter localização no pânico: $e');
       }
 
-      // 2. Busca o nome da usuária e os contatos (telefones para o SMS).
-      String nomeUsuaria = 'Uma usuária do SafeHer';
-      List<Map<String, dynamic>> contatos = [];
-      if (user != null) {
-        final perfil = await supabase
-            .from('profiles')
-            .select('nome_completo')
-            .eq('id', user.id)
-            .maybeSingle();
-        if (perfil != null && perfil['nome_completo'] != null) {
-          nomeUsuaria = perfil['nome_completo'];
-        }
-
-        final dadosContatos = await supabase
-            .from('emergency_contacts')
-            .select()
-            .eq('profile_id', user.id);
-        contatos = List<Map<String, dynamic>>.from(dadosContatos);
-      }
-
-      // 3. Dispara os e-mails pelo servidor (Edge Function).
-      await supabase.functions.invoke(
-        'panic-alert',
-        body: {'latitude': lat, 'longitude': lng},
+      // 2. Notificação da Polícia se a usuária for vítima reincidente
+      final policeResult = await PoliceAlertService.instance.alertarPolicia(
+        nomeUsuaria: nomeUsuaria,
+        cpf: cpfUsuaria,
+        lat: lat,
+        lng: lng,
       );
 
-      // 4. No Android, também envia SMS pelo chip do aparelho.
+      // 3. Dispara os e-mails pelos contatos de emergência (Edge Function).
+      await supabase.functions.invoke(
+        'panic-alert',
+        body: {
+          'latitude': lat,
+          'longitude': lng,
+          'policeAlerted': policeResult.policeAlerted,
+        },
+      );
+
+      // 4. No Android, também envia SMS pelo chip do aparelho aos contatos.
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         await _enviarSmsAndroid(nomeUsuaria, contatos, lat, lng);
       }
@@ -259,17 +269,26 @@ class _MapScreenState extends State<MapScreen> {
       );
 
       if (mounted) {
+        final mensagemFeedback = policeResult.policeAlerted
+            ? '🚨 Alerta enviado aos contatos E à Polícia Militar (190)!'
+            : '🚨 Alerta enviado aos contatos de emergência!';
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🚨 Alerta enviado e gravação de áudio iniciada!'),
+          SnackBar(
+            content: Text(mensagemFeedback),
             backgroundColor: AppColors.sosRed,
           ),
         );
 
-        // Abre a tela de SOS onde a gravação de áudio está ativa
+        // Abre a tela de SOS onde a gravação de áudio está ativa e informa status policial
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const SosScreen()),
+          MaterialPageRoute(
+            builder: (_) => SosScreen(
+              autoStart: true,
+              policeAlerted: policeResult.policeAlerted,
+            ),
+          ),
         );
       }
     } catch (e) {

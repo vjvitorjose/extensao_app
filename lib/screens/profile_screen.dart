@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/police_alert_service.dart';
 import '../theme/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _nomeCompleto = 'Carregando...';
   String _email = '';
   String _telefone = '';
+  String _cpf = '';
 
   // Lista dinâmica para múltiplos contatos de emergência
   List<Map<String, dynamic>> _contatosEmergencia = [];
@@ -50,6 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (perfilDados != null) {
         _nomeCompleto = perfilDados['nome_completo'] ?? 'Usuária SafeHer';
         _telefone = perfilDados['telefone'] ?? '';
+        _cpf = perfilDados['cpf'] ?? '';
       } else {
         _nomeCompleto = 'Usuária SafeHer';
       }
@@ -73,12 +76,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Modal para editar os dados básicos (Nome e Telefone)
+  // Modal para editar os dados básicos (Nome, Telefone e CPF)
   Future<void> _abrirModalEdicaoPerfil() async {
     final nomeController = TextEditingController(
       text: _nomeCompleto == 'Usuária SafeHer' ? '' : _nomeCompleto,
     );
     final telefoneController = TextEditingController(text: _telefone);
+    final cpfController = TextEditingController(text: _cpf);
 
     await showModalBottomSheet(
       context: context,
@@ -119,6 +123,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 keyboardType: TextInputType.phone,
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: cpfController,
+                decoration: const InputDecoration(
+                  labelText: 'CPF (para Banco de Vítimas Reincidentes)',
+                  hintText: '123.456.789-00',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -136,6 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'id': user.id,
                         'nome_completo': nomeController.text,
                         'telefone': telefoneController.text,
+                        'cpf': cpfController.text.trim(),
                         'atualizado_em': DateTime.now().toIso8601String(),
                       });
                       _carregarDadosIniciais();
@@ -411,7 +426,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.grey),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _cpf.isNotEmpty ? 'CPF: $_cpf' : 'CPF: Não cadastrado',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 16, color: AppColors.primary),
+                      onPressed: _abrirModalEdicaoPerfil,
+                      tooltip: 'Editar CPF',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                const Text(
+                  'BANCO DE VÍTIMAS REINCIDENTES & POLÍCIA',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<bool>(
+                  future: PoliceAlertService.instance.isCpfCadastradoNoBanco(_cpf),
+                  builder: (context, snapshot) {
+                    final isCadastrada = snapshot.data ?? false;
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isCadastrada ? const Color(0xFFEFF6FF) : const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isCadastrada ? const Color(0xFF93C5FD) : const Color(0xFFFDE68A),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isCadastrada ? Icons.shield : Icons.warning_amber_rounded,
+                                color: isCadastrada ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  isCadastrada
+                                      ? 'Cadastrada no Banco de Vítimas Reincidentes'
+                                      : 'Não cadastrada no Banco de Vítimas Reincidentes',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isCadastrada ? const Color(0xFF1E3A8A) : const Color(0xFF92400E),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isCadastrada
+                                ? '🚨 Ao acionar o botão de emergência, a Polícia Militar (190) receberá um alerta prioritário automático com a sua localização, além de notificar seus contatos de emergência.'
+                                : '⚠️ Ao acionar o botão de emergência, apenas seus contatos de emergência cadastrados serão notificados.',
+                            style: const TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Simular no Supabase (recurring_victims):',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              Switch(
+                                value: isCadastrada,
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (val) async {
+                                  if (_cpf.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Cadastre um CPF primeiro para simular o banco de vítimas.'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  await PoliceAlertService.instance.alternarCpfNoBanco(_cpf, _nomeCompleto);
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
 
                 const Text(
                   'CONFIGURAÇÕES',
