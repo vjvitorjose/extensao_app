@@ -383,22 +383,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Meu perfil',
-              style: TextStyle(fontSize: 18, color: Colors.white),
-            ),
-            Text(
-              'Configurações e contatos de emergência',
-              style: TextStyle(fontSize: 12, color: Colors.white70),
-            ),
-          ],
-        ),
+        title: const Text('Meu perfil', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
