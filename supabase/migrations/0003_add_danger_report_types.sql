@@ -1,0 +1,9 @@
+-- Adiciona as novas categorias aceitas pela coluna tipo_perigo.
+alter type public.tipo_perigo_enum add value if not exists 'acidente_transito';
+alter type public.tipo_perigo_enum add value if not exists 'assalto';
+alter type public.tipo_perigo_enum add value if not exists 'furto';
+alter type public.tipo_perigo_enum add value if not exists 'violencia_fisica';
+alter type public.tipo_perigo_enum add value if not exists 'presenca_arma';
+alter type public.tipo_perigo_enum add value if not exists 'incendio';
+alter type public.tipo_perigo_enum add value if not exists 'via_bloqueada';
+alter type public.tipo_perigo_enum add value if not exists 'emergencia_medica';

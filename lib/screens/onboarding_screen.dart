@@ -92,7 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Seja bem-vinda ao SafeHer!',
+                  'Seja bem-vindo ao vigIA!',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),

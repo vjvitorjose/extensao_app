@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_colors.dart';
 import 'screens/auth_gate.dart'; // <-- A importação mágica do nosso novo Guardião!
+import 'screens/admin_map_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,16 +14,16 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
-  runApp(const SafeHerApp());
+  runApp(const VigIAApp());
 }
 
-class SafeHerApp extends StatelessWidget {
-  const SafeHerApp({super.key});
+class VigIAApp extends StatelessWidget {
+  const VigIAApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SafeHer',
+      title: 'vigIA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: AppColors.primary,
@@ -32,8 +33,11 @@ class SafeHerApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      // O AuthGate importado lá de cima assume o controle da tela inicial
-      home: const AuthGate(),
+      initialRoute: Uri.base.path == '/adm' ? '/adm' : '/',
+      routes: {
+        '/': (context) => const AuthGate(),
+        '/adm': (context) => const AdminMapScreen(),
+      },
     );
   }
 }
