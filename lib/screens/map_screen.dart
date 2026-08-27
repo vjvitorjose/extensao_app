@@ -77,6 +77,14 @@ class _MapScreenState extends State<MapScreen> {
     if (categoriaVisual == 'Iluminação ruim') tipoBanco = 'iluminacao_ruim';
     if (categoriaVisual == 'Perseguição') tipoBanco = 'perseguicao';
     if (categoriaVisual == 'Local suspeito') tipoBanco = 'area_deserta';
+          if (categoriaVisual == 'Acidente de trânsito') tipoBanco = 'acidente_transito';
+          if (categoriaVisual == 'Assalto') tipoBanco = 'assalto';
+          if (categoriaVisual == 'Furto') tipoBanco = 'furto';
+          if (categoriaVisual == 'Violência física') tipoBanco = 'violencia_fisica';
+          if (categoriaVisual == 'Presença de arma') tipoBanco = 'presenca_arma';
+          if (categoriaVisual == 'Incêndio ou fumaça') tipoBanco = 'incendio';
+          if (categoriaVisual == 'Via bloqueada') tipoBanco = 'via_bloqueada';
+          if (categoriaVisual == 'Emergência médica') tipoBanco = 'emergencia_medica';
 
     try {
       final double lat;
@@ -485,6 +493,14 @@ class _MapScreenState extends State<MapScreen> {
                         AppColors.riskSuspeitoBg,
                         AppColors.riskSuspeitoText,
                       ),
+                            _buildEscolha(setModalState, 'Acidente de trânsito', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAcidenteBg, AppColors.riskAcidenteText),
+                            _buildEscolha(setModalState, 'Assalto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAssaltoBg, AppColors.riskAssaltoText),
+                            _buildEscolha(setModalState, 'Furto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskFurtoBg, AppColors.riskFurtoText),
+                            _buildEscolha(setModalState, 'Violência física', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViolenciaBg, AppColors.riskViolenciaText),
+                            _buildEscolha(setModalState, 'Presença de arma', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskArmaBg, AppColors.riskArmaText),
+                            _buildEscolha(setModalState, 'Incêndio ou fumaça', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskIncendioBg, AppColors.riskIncendioText),
+                            _buildEscolha(setModalState, 'Via bloqueada', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViaBloqueadaBg, AppColors.riskViaBloqueadaText),
+                            _buildEscolha(setModalState, 'Emergência médica', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskEmergenciaMedicaBg, AppColors.riskEmergenciaMedicaText),
                     ],
                   ),
                   const SizedBox(height: 16),

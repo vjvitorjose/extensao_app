@@ -104,6 +104,27 @@ class _AlertsScreenState extends State<AlertsScreen> {
           'text': AppColors.riskPerseguicaoText,
         };
       case 'area_deserta':
+        return {
+          'label': 'Local suspeito',
+          'bg': AppColors.riskSuspeitoBg,
+          'text': AppColors.riskSuspeitoText,
+        };
+      case 'acidente_transito':
+        return {'label': 'Acidente de trânsito', 'bg': AppColors.riskAcidenteBg, 'text': AppColors.riskAcidenteText};
+      case 'assalto':
+        return {'label': 'Assalto', 'bg': AppColors.riskAssaltoBg, 'text': AppColors.riskAssaltoText};
+      case 'furto':
+        return {'label': 'Furto', 'bg': AppColors.riskFurtoBg, 'text': AppColors.riskFurtoText};
+      case 'violencia_fisica':
+        return {'label': 'Violência física', 'bg': AppColors.riskViolenciaBg, 'text': AppColors.riskViolenciaText};
+      case 'presenca_arma':
+        return {'label': 'Presença de arma', 'bg': AppColors.riskArmaBg, 'text': AppColors.riskArmaText};
+      case 'incendio':
+        return {'label': 'Incêndio ou fumaça', 'bg': AppColors.riskIncendioBg, 'text': AppColors.riskIncendioText};
+      case 'via_bloqueada':
+        return {'label': 'Via bloqueada', 'bg': AppColors.riskViaBloqueadaBg, 'text': AppColors.riskViaBloqueadaText};
+      case 'emergencia_medica':
+        return {'label': 'Emergência médica', 'bg': AppColors.riskEmergenciaMedicaBg, 'text': AppColors.riskEmergenciaMedicaText};
       default:
         return {
           'label': 'Local suspeito',
