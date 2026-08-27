@@ -42,7 +42,7 @@ jobs:
           mkdir -p .vercel/output/static
           cp -r build/web/* .vercel/output/static/
           # Mantem os assets estaticos e encaminha rotas do Flutter para index.html.
-          echo '{"version":3,"routes":[{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}' > .vercel/output/config.json
+          echo '{"version":3,"routes":[{"src":"/adm","dest":"/index.html"},{"src":"/adm/","dest":"/index.html"},{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}' > .vercel/output/config.json
 
       - name: Install Vercel CLI
         run: npm install -g vercel
