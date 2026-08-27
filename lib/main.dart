@@ -13,16 +13,16 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
-  runApp(const SafeHerApp());
+  runApp(const VigIAApp());
 }
 
-class SafeHerApp extends StatelessWidget {
-  const SafeHerApp({super.key});
+class VigIAApp extends StatelessWidget {
+  const VigIAApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SafeHer',
+      title: 'vigIA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: AppColors.primary,

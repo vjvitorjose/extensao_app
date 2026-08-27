@@ -195,12 +195,12 @@ class _SosScreenState extends State<SosScreen> {
                 onTap: _toggleRecording,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: _isTriggered ? 130 : 140,
-                  height: _isTriggered ? 130 : 140,
+                  width: _isTriggered ? 200 : 220,
+                  height: _isTriggered ? 200 : 220,
                   decoration: BoxDecoration(
                     color: AppColors.sosRed,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.sosRedBorder, width: 6),
+                    border: Border.all(color: AppColors.sosRedBorder, width: 8),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -208,12 +208,12 @@ class _SosScreenState extends State<SosScreen> {
                       Icon(
                         _isRecording ? Icons.stop_circle : Icons.notifications_active,
                         color: Colors.white,
-                        size: 40,
+                        size: 80,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         _isRecording ? 'PARAR' : (_isTriggered ? 'ATIVADO' : 'PRESSIONE'),
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

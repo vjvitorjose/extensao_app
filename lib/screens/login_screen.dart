@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                const Text('SafeHer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                const Text('vigIA', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text('Segurança na sua cidade', style: TextStyle(fontSize: 13, color: Colors.black54)),
                 const SizedBox(height: 28),
