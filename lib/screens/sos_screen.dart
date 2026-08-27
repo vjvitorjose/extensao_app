@@ -49,6 +49,9 @@ class _SosScreenState extends State<SosScreen> {
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) return;
         setState(() => _elapsedSeconds++);
+        if (_elapsedSeconds >= 600) {
+          _stopRecording();
+        }
       });
     }
   }
@@ -94,6 +97,9 @@ class _SosScreenState extends State<SosScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() => _elapsedSeconds++);
+      if (_elapsedSeconds >= 600) {
+        _stopRecording();
+      }
     });
   }
 
