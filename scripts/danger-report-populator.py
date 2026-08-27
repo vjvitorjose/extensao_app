@@ -15,11 +15,15 @@ REQUESTS_PER_SECOND = 2
 REPORTS_PER_USER_MIN = 0
 REPORTS_PER_USER_MAX = 3
 USERS_PER_EXECUTION = 5
-# Caixa aproximada da area urbana e arredores de Sao Joao del-Rei, MG.
-LATITUDE_MIN = -21.22
-LATITUDE_MAX = -21.07
-LONGITUDE_MIN = -44.34
-LONGITUDE_MAX = -44.18
+# Limites aproximados da area urbana de Sao Joao del-Rei, MG.
+URBAN_LATITUDE_MIN = -21.17
+URBAN_LATITUDE_MAX = -21.10
+URBAN_LONGITUDE_MIN = -44.30
+URBAN_LONGITUDE_MAX = -44.22
+URBAN_CENTER_LATITUDE = -21.1355
+URBAN_CENTER_LONGITUDE = -44.2616
+URBAN_LATITUDE_SPREAD = 0.012
+URBAN_LONGITUDE_SPREAD = 0.014
 
 REPORT_TYPES = (
 	("assedio", "Relato ficticio de assedio na regiao."),
@@ -118,6 +122,14 @@ def list_auth_users(base_url: str, service_role_key: str) -> dict[str, dict]:
 	}
 
 
+def generate_urban_coordinates(random_generator: random.Random) -> tuple[float, float]:
+	latitude = random_generator.gauss(URBAN_CENTER_LATITUDE, URBAN_LATITUDE_SPREAD)
+	longitude = random_generator.gauss(URBAN_CENTER_LONGITUDE, URBAN_LONGITUDE_SPREAD)
+	latitude = min(max(latitude, URBAN_LATITUDE_MIN), URBAN_LATITUDE_MAX)
+	longitude = min(max(longitude, URBAN_LONGITUDE_MIN), URBAN_LONGITUDE_MAX)
+	return round(latitude, 6), round(longitude, 6)
+
+
 def populate_danger_reports() -> None:
 	load_dotenv_file()
 	base_url = os.environ.get("SUPABASE_URL")
@@ -143,8 +155,7 @@ def populate_danger_reports() -> None:
 		report_count = random_generator.randint(max(1, REPORTS_PER_USER_MIN), REPORTS_PER_USER_MAX)
 		selected_types = random_generator.sample(REPORT_TYPES, report_count)
 		for report_type, description in selected_types:
-			latitude = random_generator.uniform(LATITUDE_MIN, LATITUDE_MAX)
-			longitude = random_generator.uniform(LONGITUDE_MIN, LONGITUDE_MAX)
+			latitude, longitude = generate_urban_coordinates(random_generator)
 			supabase_request(
 				base_url,
 				service_role_key,
@@ -154,8 +165,8 @@ def populate_danger_reports() -> None:
 					"usuario_id": user_id,
 					"tipo_perigo": report_type,
 					"descricao": description,
-					"latitude": round(latitude, 6),
-					"longitude": round(longitude, 6),
+					"latitude": latitude,
+					"longitude": longitude,
 					"endereco": "Sao Joao del-Rei, MG (dado ficticio)",
 				},
 			)
