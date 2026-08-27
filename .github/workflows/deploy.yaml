@@ -41,8 +41,8 @@ jobs:
         run: |
           mkdir -p .vercel/output/static
           cp -r build/web/* .vercel/output/static/
-          # Cria um arquivo de configuração mínimo para o build engine da Vercel
-          echo '{"version": 3}' > .vercel/output/config.json
+          # Mantem os assets estaticos e encaminha rotas do Flutter para index.html.
+          echo '{"version":3,"routes":[{"handle":"filesystem"},{"src":"/(.*)","dest":"/index.html"}]}' > .vercel/output/config.json
 
       - name: Install Vercel CLI
         run: npm install -g vercel
