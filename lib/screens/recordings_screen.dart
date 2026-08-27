@@ -44,7 +44,7 @@ class _RecordingsScreenState extends State<RecordingsScreen> {
     try {
       await Share.shareXFiles(
         [XFile(recording.filePath)],
-        text: 'Áudio de emergência SafeHer: ${recording.fileName}',
+        text: 'Áudio de emergência vigIA: ${recording.fileName}',
       );
     } catch (e) {
       if (!mounted) return;

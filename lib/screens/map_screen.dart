@@ -107,7 +107,7 @@ class _MapScreenState extends State<MapScreen> {
           );
           final response = await http.get(
             url,
-            headers: {'User-Agent': 'SafeHerApp/1.0'},
+            headers: {'User-Agent': 'vigIA/1.0'},
           );
 
           if (response.statusCode == 200) {
@@ -181,7 +181,7 @@ class _MapScreenState extends State<MapScreen> {
     if (_enviandoPanico) return;
 
     final user = supabase.auth.currentUser;
-    String nomeUsuaria = 'Uma usuária do SafeHer';
+    String nomeUsuaria = 'Uma usuária do vigIA';
     String? cpfUsuaria;
     List<Map<String, dynamic>> contatos = [];
 
@@ -332,7 +332,7 @@ class _MapScreenState extends State<MapScreen> {
           ? 'https://www.google.com/maps?q=$lat,$lng'
           : 'localização indisponível';
       final mensagem =
-          '🚨 $nomeUsuaria acionou um alerta de emergência (SafeHer). '
+          '🚨 $nomeUsuaria acionou um alerta de emergência (vigIA). '
           'Localização: $linkMapa';
 
       for (final contato in contatos) {
@@ -616,7 +616,14 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        title: const Text('SafeHer', style: TextStyle(color: Colors.white)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.shield_outlined, color: Colors.white, size: 34),
+            SizedBox(width: 8),
+            Text('vigIA', style: TextStyle(color: Colors.white)),
+          ],
+        ),
       ),
       body: Stack(
         children: [
@@ -671,56 +678,70 @@ class _MapScreenState extends State<MapScreen> {
           Positioned(
             bottom: 24,
             left: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'sos_btn',
-              backgroundColor: AppColors.sosRed,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SosScreen()),
-                );
-              },
-              label: const Text('SOS', style: TextStyle(color: Colors.white)),
+            child: SizedBox(
+              width: 80,
+              height: 80,
+              child: FloatingActionButton(
+                heroTag: 'sos_btn',
+                shape: const CircleBorder(
+                  side: BorderSide(color: Colors.black, width: 3),
+                ),
+                backgroundColor: AppColors.sosRed,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SosScreen()),
+                  );
+                },
+                child: const Text(
+                  'SOS', 
+                  style: TextStyle(
+                    color: Colors.white, 
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                  ),
+                ),
+              ),
             ),
           ),
           Positioned(
             bottom: 24,
             right: 16,
-            child: FloatingActionButton(
-              heroTag: 'report_btn',
-              backgroundColor: AppColors.primary,
-              onPressed: () => _abrirModalRisco(context),
-              child: const Icon(Icons.add_location_alt, color: Colors.white),
-            ),
-          ),
-
-          // Botão de pânico (SOS) — avisa os contatos de emergência na hora.
-          Positioned(
-            bottom: 24,
-            left: 16,
-            child: FloatingActionButton.extended(
-              heroTag: 'panic_btn',
-              backgroundColor: AppColors.sosRed,
-              onPressed: _enviandoPanico ? null : _acionarPanico,
-              icon: _enviandoPanico
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+            child: Material(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 4,
+              child: InkWell(
+                onTap: () => _abrirModalRisco(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: const [
+                          Icon(Icons.warning_rounded, color: Colors.black, size: 54),
+                          Icon(Icons.warning_rounded, color: Colors.yellow, size: 48),
+                        ],
                       ),
-                    )
-                  : const Icon(Icons.campaign, color: Colors.white),
-              label: Text(
-                _enviandoPanico ? 'Enviando...' : 'SOS',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Alerta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
+
         ],
       ),
     );

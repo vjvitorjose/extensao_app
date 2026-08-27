@@ -50,11 +50,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .maybeSingle();
 
       if (perfilDados != null) {
-        _nomeCompleto = perfilDados['nome_completo'] ?? 'Usuária SafeHer';
+        _nomeCompleto = perfilDados['nome_completo'] ?? 'Usuária vigIA';
         _telefone = perfilDados['telefone'] ?? '';
         _cpf = perfilDados['cpf'] ?? '';
       } else {
-        _nomeCompleto = 'Usuária SafeHer';
+        _nomeCompleto = 'Usuária vigIA';
       }
 
       // 2. Busca a lista de múltiplos contatos de emergência
@@ -79,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Modal para editar os dados básicos (Nome, Telefone e CPF)
   Future<void> _abrirModalEdicaoPerfil() async {
     final nomeController = TextEditingController(
-      text: _nomeCompleto == 'Usuária SafeHer' ? '' : _nomeCompleto,
+      text: _nomeCompleto == 'Usuária vigIA' ? '' : _nomeCompleto,
     );
     final telefoneController = TextEditingController(text: _telefone);
     final cpfController = TextEditingController(text: _cpf);
@@ -301,14 +301,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String phone,
     String? relationship,
   ) {
-    String initials = name.isNotEmpty ? name.toUpperCase() : '?';
+    String initials = '?';
+    if (name.isNotEmpty) {
+      List<String> names = name.trim().split(RegExp(r'\s+'));
+      if (names.isNotEmpty) {
+        initials = names[0][0].toUpperCase();
+        if (names.length > 1 && names.last.isNotEmpty) {
+          initials += names.last[0].toUpperCase();
+        }
+      }
+    }
     String subtitulo = relationship != null ? '$relationship · $phone' : phone;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.riskAssedioBg,
+        color: AppColors.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -334,14 +343,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   name,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.riskAssedioText,
+                    color: AppColors.primary,
                   ),
                 ),
                 Text(
                   subtitulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF993556),
+                    color: AppColors.primary.withOpacity(0.8),
                   ),
                 ),
               ],
@@ -350,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(
               Icons.delete_outline,
-              color: Color(0xFF993556),
+              color: AppColors.sosRed,
               size: 20,
             ),
             onPressed: () => _deletarContato(id),
@@ -363,11 +372,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     String userInitials = 'U';
-    if (_nomeCompleto.isNotEmpty && _nomeCompleto != 'Usuária SafeHer') {
-      List<String> names = _nomeCompleto.split(' ');
-      userInitials = names[0].toUpperCase();
-      if (names.length > 1 && names.last.isNotEmpty) {
-        userInitials = names[0].toUpperCase();
+    if (_nomeCompleto.isNotEmpty && _nomeCompleto != 'Usuária vigIA') {
+      List<String> names = _nomeCompleto.trim().split(RegExp(r'\s+'));
+      if (names.isNotEmpty) {
+        userInitials = names[0][0].toUpperCase();
+        if (names.length > 1 && names.last.isNotEmpty) {
+          userInitials += names.last[0].toUpperCase();
+        }
       }
     }
 
@@ -402,12 +413,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 40,
-                  backgroundColor: AppColors.riskAssedioBg,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     userInitials,
                     style: const TextStyle(
                       fontSize: 28,
-                      color: AppColors.riskAssedioText,
+                      color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
