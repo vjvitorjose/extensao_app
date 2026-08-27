@@ -64,11 +64,11 @@ def generate_users() -> tuple[dict, ...]:
 	generated_users = []
 	for index in range(1, 996):
 		first_name = first_names[(index - 1) % len(first_names)]
-		second_name = second_names[(index // len(first_names)) % len(second_names)]
-		surname = surnames[(index - 1) % len(surnames)]
+		second_name = second_names[((index - 1) // len(first_names)) % len(second_names)]
+		surname = surnames[((index - 1) // (len(first_names) * len(second_names))) % len(surnames)]
 		generated_users.append(
 			{
-				"nome_completo": f"{first_name} {second_name} {surname} {index:03d}",
+				"nome_completo": f"{first_name} {second_name} {surname}",
 				"telefone": f"+55 37 99999-{2000 + index:04d}",
 				"cpf": generate_cpf(index),
 				"email": f"usuario.teste.{index:04d}@example.com",
