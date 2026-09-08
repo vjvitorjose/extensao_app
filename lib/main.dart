@@ -22,18 +22,6 @@ Future<void> main() async {
 class VigIAApp extends StatelessWidget {
   const VigIAApp({super.key});
 
-  static bool get _isAdminRoute {
-    final path = Uri.base.path.toLowerCase();
-    final fragment = Uri.base.fragment.toLowerCase();
-    return path == '/adm' ||
-        path == '/adm/' ||
-        path.endsWith('/adm') ||
-        path.endsWith('/adm/') ||
-        fragment == '/adm' ||
-        fragment == 'adm' ||
-        fragment.endsWith('/adm');
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -47,10 +35,46 @@ class VigIAApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      initialRoute: _isAdminRoute ? '/adm' : '/',
-      routes: {
-        '/': (context) => const AuthGate(),
-        '/adm': (context) => const AdminMapScreen(),
+      onGenerateInitialRoutes: (initialRoute) {
+        final uri = Uri.base;
+        final path = uri.path.toLowerCase();
+        final fragment = uri.fragment.toLowerCase();
+        final isAdmin = path == '/adm' ||
+            path == '/adm/' ||
+            path.endsWith('/adm') ||
+            path.endsWith('/adm/') ||
+            fragment == '/adm' ||
+            fragment == 'adm' ||
+            fragment.endsWith('/adm') ||
+            initialRoute == '/adm';
+
+        if (isAdmin) {
+          return [
+            MaterialPageRoute(
+              builder: (_) => const AdminMapScreen(),
+              settings: const RouteSettings(name: '/adm'),
+            ),
+          ];
+        }
+
+        return [
+          MaterialPageRoute(
+            builder: (_) => const AuthGate(),
+            settings: const RouteSettings(name: '/'),
+          ),
+        ];
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/adm') {
+          return MaterialPageRoute(
+            builder: (_) => const AdminMapScreen(),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const AuthGate(),
+          settings: settings,
+        );
       },
     );
   }
