@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_colors.dart';
-import 'screens/auth_gate.dart'; // <-- A importação mágica do nosso novo Guardião!
+import 'screens/auth_gate.dart';
 import 'screens/admin_map_screen.dart';
 
 Future<void> main() async {
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
 
@@ -20,6 +22,18 @@ Future<void> main() async {
 class VigIAApp extends StatelessWidget {
   const VigIAApp({super.key});
 
+  static bool get _isAdminRoute {
+    final path = Uri.base.path.toLowerCase();
+    final fragment = Uri.base.fragment.toLowerCase();
+    return path == '/adm' ||
+        path == '/adm/' ||
+        path.endsWith('/adm') ||
+        path.endsWith('/adm/') ||
+        fragment == '/adm' ||
+        fragment == 'adm' ||
+        fragment.endsWith('/adm');
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -33,7 +47,7 @@ class VigIAApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      initialRoute: Uri.base.path == '/adm' ? '/adm' : '/',
+      initialRoute: _isAdminRoute ? '/adm' : '/',
       routes: {
         '/': (context) => const AuthGate(),
         '/adm': (context) => const AdminMapScreen(),
@@ -41,3 +55,4 @@ class VigIAApp extends StatelessWidget {
     );
   }
 }
+
