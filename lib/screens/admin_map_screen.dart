@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
+import '../widgets/admin_drawer.dart';
 
 class AdminMapScreen extends StatefulWidget {
   const AdminMapScreen({super.key});
@@ -145,10 +146,11 @@ class _AdminMapScreenState extends State<AdminMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AdminDrawer(),
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        title: const Text('Painel administrativo'),
+        title: const Text('Mapa Administrativo'),
         actions: [
           IconButton(
             tooltip: 'Atualizar alertas',

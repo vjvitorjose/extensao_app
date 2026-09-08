@@ -46,6 +46,7 @@ dependencies:
   another_telephony: ^0.4.1
   share_plus: ^10.1.4
   url_launcher: ^6.3.2
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:
