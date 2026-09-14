@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
 import 'onboarding_screen.dart';
+import 'admin_map_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -16,6 +17,7 @@ class _AuthGateState extends State<AuthGate> {
   User? _user;
   bool _isLoading = true;
   bool _hasProfileCompleted = false;
+  bool _isAdmin = false; 
 
   @override
   void initState() {
@@ -30,17 +32,51 @@ class _AuthGateState extends State<AuthGate> {
 
       if (session != null) {
         _user = session.user;
-        // Se está logado, verifica se o perfil dele já existe na tabela pública
-        await _verificarPerfilExistente(session.user.id);
+        // Se está logado, verifica se é admin ou se completou o perfil
+        await _verificarAdmin(session.user.id);
       } else {
         if (mounted) {
           setState(() {
             _user = null;
+            _isAdmin = false;
+            _hasProfileCompleted = false;
             _isLoading = false;
           });
         }
       }
     });
+  }
+
+  Future<void> _verificarAdmin(String userId) async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final resposta = await supabase
+          .from('administradores')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      final ehAdmin = resposta != null;
+
+      if (!mounted) return;
+      setState(() => _isAdmin = ehAdmin);
+
+      if (ehAdmin) {
+        // é admin, não precisa checar perfil nem onboarding
+        setState(() => _isLoading = false);
+      } else {
+        // não é admin, segue o fluxo normal
+        // Se está logado, verifica se o perfil dele já existe na tabela pública
+        await _verificarPerfilExistente(userId);
+      }
+    } catch (e) {
+      debugPrint('Erro no Gate ao verificar admin: $e');
+      if (!mounted) return;
+      setState(() => _isAdmin = false);
+      await _verificarPerfilExistente(userId);
+    }
   }
 
   Future<void> _verificarPerfilExistente(String userId) async {
@@ -81,14 +117,19 @@ class _AuthGateState extends State<AuthGate> {
       return const LoginScreen();
     }
 
-    // 3. Se está logada mas não completou o perfil, manda para o Onboarding
+    // 3. Se é admin, vai direto pro painel administrativo
+    if (_isAdmin) {
+      return const AdminMapScreen();
+    }
+
+    // 4. Se está logada mas não completou o perfil, manda para o Onboarding
     if (!_hasProfileCompleted) {
       return OnboardingScreen(
         onComplete: () => _verificarPerfilExistente(_user!.id),
       );
     }
 
-    // 4. Se passou em tudo, libera o aplicativo principal (Mapa e navegação)
+    // 5. Se passou em tudo, libera o aplicativo principal (Mapa e navegação)
     return const MainScreen();
   }
 }
