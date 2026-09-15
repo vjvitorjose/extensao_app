@@ -45,21 +45,7 @@ POSTS_PER_CATEGORY = 100
 # Campos retornados pela API (reduz payload).
 API_FIELDS = "id,date,link,title,content"
 
-# Mapeamento: palavras-chave no titulo/conteudo -> tipo_perigo do banco.
-# A ordem importa: a primeira correspondencia vence.
-KEYWORD_MAP = (
-    (("assedio", "assédio", "importunacao", "importunação"), "assedio"),
-    (("perseguicao", "perseguição", "perseguido"), "perseguicao"),
-    (("assalto", "assaltado", "roubado", "roubo"), "assalto"),
-    (("furto", "furtado", "subtrai"), "furto"),
-    (("homicidio", "homicídio", "assassinado", "assassinato", "baleado", "esfaqueado"), "violencia_fisica"),
-    (("arma", "revolver", "revólver", "pistola", "faca"), "presenca_arma"),
-    (("incendio", "incêndio", "fumaca", "fumaça", "fogo"), "incendio"),
-    (("acidente", "colisao", "colisão", "atropelado", "atropelamento"), "acidente_transito"),
-    (("bloqueada", "bloqueado", "interditada", "interdita"), "via_bloqueada"),
-    (("samu", "socorro", "emergencia medica", "emergência médica"), "emergencia_medica"),
-    (("iluminacao", "iluminação", "escuro", "luz"), "iluminacao_ruim"),
-)
+
 
 # Diretorio de saida (relativo ao arquivo do scraper).
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -77,18 +63,6 @@ def _strip_html(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _classify(title: str, content: str) -> str:
-    """Infere o tipo_perigo a partir do titulo e conteudo do artigo.
-
-    Usa word boundary (\\b) para evitar falsos positivos por substring,
-    por exemplo 'armazenados' nao deve disparar 'presenca_arma'.
-    """
-    haystack = (title + " " + content).lower()
-    for keywords, tipo in KEYWORD_MAP:
-        pattern = "|".join(rf"\b{re.escape(kw)}\b" for kw in keywords)
-        if re.search(pattern, haystack):
-            return tipo
-    return "area_deserta"  # fallback
 
 
 def _extract_address(content: str) -> str | None:
@@ -194,8 +168,7 @@ def _process_post(post: dict) -> dict:
     Campos gerados:
       titulo            - titulo do artigo
       descricao         - primeiras 2-3 frases; pronto para uso no populador
-      conteudo_completo - artigo integral limpo; para uso futuro com LLM
-      tipo_perigo       - classificado por palavras-chave
+      conteudo_completo - artigo integral limpo; para classificacao via LLM
       endereco          - bairro/rua extraido por regex (pode ser None)
       fonte_url         - URL original
       fonte_data        - data de publicacao (ISO 8601)
@@ -204,14 +177,12 @@ def _process_post(post: dict) -> dict:
     content = _strip_html(post["content"]["rendered"])
 
     descricao = _build_descricao(content)
-    tipo = _classify(title, content)
     endereco = _extract_address(content)
 
     return {
         "titulo": title,
         "descricao": descricao,
         "conteudo_completo": content,
-        "tipo_perigo": tipo,
         "endereco": endereco,
         "fonte_url": post["link"],
         "fonte_data": post["date"],

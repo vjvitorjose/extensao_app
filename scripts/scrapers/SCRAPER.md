@@ -47,25 +47,13 @@ Cada entrada do JSON possui os campos:
 |---------------------|----------------------------------------------------------------|
 | `titulo`            | Titulo do artigo                                               |
 | `descricao`         | Primeiras 2-3 frases; pronto para uso imediato no populador    |
-| `conteudo_completo` | Texto integral do artigo (para uso futuro com LLM)             |
-| `tipo_perigo`       | Classificado por palavras-chave (12 tipos do banco)            |
+| `conteudo_completo` | Texto integral do artigo (para classificacao via LLM)          |
 | `endereco`          | Bairro/rua extraido por regex do conteudo (pode ser `null`)    |
 | `fonte_url`         | URL do artigo original                                         |
 | `fonte_data`        | Data de publicacao (ISO 8601)                                  |
 
-**Configuracao:**
-
-```python
-# Quantidade de posts por categoria (padrao: 100)
-POSTS_PER_CATEGORY = 100
-```
-
-**Classificacao por palavras-chave:**
-
-O campo `tipo_perigo` é inferido automaticamente a partir do titulo e conteudo.
-A classificacao é heuristica e pode conter falsos positivos — o campo
-`conteudo_completo` esta disponivel justamente para permitir re-classificacao
-via LLM no futuro.
+> O campo `tipo_perigo` **nao e gerado pelo scraper**. A classificacao
+> ficara a cargo de uma LLM que consumira o `conteudo_completo` futuramente.
 
 **Execucao:**
 
