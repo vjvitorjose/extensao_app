@@ -1,7 +1,9 @@
+import 'login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
+
 
 class AdminMapScreen extends StatefulWidget {
   const AdminMapScreen({super.key});
@@ -142,7 +144,7 @@ class _AdminMapScreenState extends State<AdminMapScreen> {
     await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -154,6 +156,20 @@ class _AdminMapScreenState extends State<AdminMapScreen> {
             tooltip: 'Atualizar alertas',
             onPressed: _carregando ? null : _carregarAlertas,
             icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            tooltip: 'Sair',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await supabase.auth.signOut();
+              
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/', 
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),

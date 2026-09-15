@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../services/local_audio_service.dart';
 import '../services/police_alert_service.dart';
 import 'sos_screen.dart';
+import 'login_screen.dart';
 
 bool _modalAberto = false;
 
@@ -624,6 +625,21 @@ class _MapScreenState extends State<MapScreen> {
             Text('vigIA', style: TextStyle(color: Colors.white)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Sair',
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
