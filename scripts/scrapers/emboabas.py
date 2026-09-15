@@ -39,8 +39,9 @@ TARGET_CATEGORIES = {
     10: "Cidade",
 }
 
-# Quantos posts buscar por categoria.
-POSTS_PER_CATEGORY = 100
+# Quantos posts buscar por categoria. Use um valor alto para coletar tudo;
+# a paginacao para automaticamente quando os posts acabarem.
+POSTS_PER_CATEGORY = 9999
 
 # Campos retornados pela API (reduz payload).
 API_FIELDS = "id,date,link,title,content"
