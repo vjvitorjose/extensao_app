@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_profile_provider.dart';
+import '../providers/app_settings_provider.dart';
 import '../services/police_alert_service.dart';
 import '../theme/app_colors.dart';
 
@@ -11,78 +13,24 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final supabase = Supabase.instance.client;
-
-  bool locShared = true;
-  bool pushAlerts = true;
-  bool _carregando = true;
-
-  // Dados do Perfil
-  String _nomeCompleto = 'Carregando...';
-  String _email = '';
-  String _telefone = '';
-  String _cpf = '';
-
-  // Lista dinâmica para múltiplos contatos de emergência
-  List<Map<String, dynamic>> _contatosEmergencia = [];
-
   @override
   void initState() {
     super.initState();
-    _carregarDadosIniciais();
-  }
-
-  // Carrega o perfil e a lista de contatos do Supabase
-  Future<void> _carregarDadosIniciais() async {
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      setState(() {
-        _email = user.email ?? 'Sem e-mail';
-      });
-
-      // 1. Busca os dados do perfil básico
-      final perfilDados = await supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (perfilDados != null) {
-        _nomeCompleto = perfilDados['nome_completo'] ?? 'Usuária vigIA';
-        _telefone = perfilDados['telefone'] ?? '';
-        _cpf = perfilDados['cpf'] ?? '';
-      } else {
-        _nomeCompleto = 'Usuária vigIA';
-      }
-
-      // 2. Busca a lista de múltiplos contatos de emergência
-      final contatosDados = await supabase
-          .from('emergency_contacts')
-          .select()
-          .eq('profile_id', user.id)
-          .order('criado_em', ascending: true);
-
-      setState(() {
-        _contatosEmergencia = List<Map<String, dynamic>>.from(contatosDados);
-      });
-    } catch (e) {
-      debugPrint('Erro ao carregar dados do perfil: $e');
-    } finally {
-      setState(() {
-        _carregando = false;
-      });
-    }
+    // Garante que o perfil está carregado ao abrir a tela
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserProfileProvider>().loadProfile();
+    });
   }
 
   // Modal para editar os dados básicos (Nome, Telefone e CPF)
-  Future<void> _abrirModalEdicaoPerfil() async {
+  Future<void> _abrirModalEdicaoPerfil(
+    UserProfileProvider profileProvider,
+  ) async {
     final nomeController = TextEditingController(
-      text: _nomeCompleto == 'Usuária vigIA' ? '' : _nomeCompleto,
+      text: profileProvider.nomeCompleto == 'Usuária vigIA' ? '' : profileProvider.nomeCompleto,
     );
-    final telefoneController = TextEditingController(text: _telefone);
-    final cpfController = TextEditingController(text: _cpf);
+    final telefoneController = TextEditingController(text: profileProvider.telefone);
+    final cpfController = TextEditingController(text: profileProvider.cpf);
 
     await showModalBottomSheet(
       context: context,
@@ -142,18 +90,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () async {
-                    final user = supabase.auth.currentUser;
-                    if (user == null) return;
-
                     try {
-                      await supabase.from('profiles').upsert({
-                        'id': user.id,
-                        'nome_completo': nomeController.text,
-                        'telefone': telefoneController.text,
-                        'cpf': cpfController.text.trim(),
-                        'atualizado_em': DateTime.now().toIso8601String(),
-                      });
-                      _carregarDadosIniciais();
+                      await profileProvider.updateProfile(
+                        nomeCompleto: nomeController.text,
+                        telefone: telefoneController.text,
+                        cpf: cpfController.text,
+                      );
                       if (context.mounted) Navigator.pop(context);
                     } catch (e) {
                       debugPrint('Erro ao salvar perfil: $e');
@@ -174,7 +116,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Modal para cadastrar um novo contato de emergência na lista
-  Future<void> _abrirModalAdicionarContato() async {
+  Future<void> _abrirModalAdicionarContato(
+    UserProfileProvider profileProvider,
+  ) async {
     final nomeController = TextEditingController();
     final telefoneController = TextEditingController();
     final emailController = TextEditingController();
@@ -245,27 +189,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () async {
-                    final user = supabase.auth.currentUser;
-                    if (user == null) return;
-
                     if (nomeController.text.isEmpty ||
                         telefoneController.text.isEmpty) {
                       return;
                     }
 
                     try {
-                      await supabase.from('emergency_contacts').insert({
-                        'profile_id': user.id,
-                        'nome': nomeController.text,
-                        'telefone': telefoneController.text,
-                        'email': emailController.text.isEmpty
+                      await profileProvider.addEmergencyContact(
+                        nome: nomeController.text,
+                        telefone: telefoneController.text,
+                        email: emailController.text.isEmpty
                             ? null
-                            : emailController.text.trim(),
-                        'parentesco': parentescoController.text.isEmpty
+                            : emailController.text,
+                        parentesco: parentescoController.text.isEmpty
                             ? null
                             : parentescoController.text,
-                      });
-                      _carregarDadosIniciais();
+                      );
                       if (context.mounted) Navigator.pop(context);
                     } catch (e) {
                       debugPrint('Erro ao adicionar contato: $e');
@@ -283,16 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       },
     );
-  }
-
-  // Remove um contato específico da tabela
-  Future<void> _deletarContato(String contatoId) async {
-    try {
-      await supabase.from('emergency_contacts').delete().eq('id', contatoId);
-      _carregarDadosIniciais();
-    } catch (e) {
-      debugPrint('Erro ao deletar contato: $e');
-    }
   }
 
   Widget _buildContactCard(
@@ -362,7 +291,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.sosRed,
               size: 20,
             ),
-            onPressed: () => _deletarContato(id),
+            onPressed: () =>
+                context.read<UserProfileProvider>().removeEmergencyContact(id),
           ),
         ],
       ),
@@ -371,253 +301,263 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String userInitials = 'U';
-    if (_nomeCompleto.isNotEmpty && _nomeCompleto != 'Usuária vigIA') {
-      List<String> names = _nomeCompleto.trim().split(RegExp(r'\s+'));
-      if (names.isNotEmpty) {
-        userInitials = names[0][0].toUpperCase();
-        if (names.length > 1 && names.last.isNotEmpty) {
-          userInitials += names.last[0].toUpperCase();
+    return Consumer2<UserProfileProvider, AppSettingsProvider>(
+      builder: (context, profileProvider, settingsProvider, _) {
+        String userInitials = 'U';
+        if (profileProvider.nomeCompleto.isNotEmpty &&
+            profileProvider.nomeCompleto != 'Usuária vigIA') {
+          List<String> names = profileProvider.nomeCompleto.trim().split(RegExp(r'\s+'));
+          if (names.isNotEmpty) {
+            userInitials = names[0][0].toUpperCase();
+            if (names.length > 1 && names.last.isNotEmpty) {
+              userInitials += names.last[0].toUpperCase();
+            }
+          }
         }
-      }
-    }
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: const Text('Meu perfil', style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: _abrirModalEdicaoPerfil,
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            title: const Text('Meu perfil', style: TextStyle(color: Colors.white)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.white),
+                onPressed: () => _abrirModalEdicaoPerfil(profileProvider),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _carregando
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Text(
-                    userInitials,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _nomeCompleto,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  _email,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          body: profileProvider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(24),
                   children: [
-                    Text(
-                      _cpf.isNotEmpty ? 'CPF: $_cpf' : 'CPF: Não cadastrado',
-                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(
+                        userInitials,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, size: 16, color: AppColors.primary),
-                      onPressed: _abrirModalEdicaoPerfil,
-                      tooltip: 'Editar CPF',
+                    const SizedBox(height: 12),
+                    Text(
+                      profileProvider.nomeCompleto,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      profileProvider.email,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          profileProvider.cpf.isNotEmpty
+                              ? 'CPF: ${profileProvider.cpf}'
+                              : 'CPF: Não cadastrado',
+                          style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 16, color: AppColors.primary),
+                          onPressed: () => _abrirModalEdicaoPerfil(profileProvider),
+                          tooltip: 'Editar CPF',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    const Text(
+                      'BANCO DE VÍTIMAS REINCIDENTES & POLÍCIA',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FutureBuilder<bool>(
+                      future: PoliceAlertService.instance.isCpfCadastradoNoBanco(profileProvider.cpf),
+                      builder: (context, snapshot) {
+                        final isCadastrada = snapshot.data ?? false;
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isCadastrada ? const Color(0xFFEFF6FF) : const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCadastrada ? const Color(0xFF93C5FD) : const Color(0xFFFDE68A),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    isCadastrada ? Icons.shield : Icons.warning_amber_rounded,
+                                    color: isCadastrada ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      isCadastrada
+                                          ? 'Cadastrada no Banco de Vítimas Reincidentes'
+                                          : 'Não cadastrada no Banco de Vítimas Reincidentes',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isCadastrada ? const Color(0xFF1E3A8A) : const Color(0xFF92400E),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                isCadastrada
+                                    ? '🚨 Ao acionar o botão de emergência, a Polícia Militar (190) receberá um alerta prioritário automático com a sua localização, além de notificar seus contatos de emergência.'
+                                    : '⚠️ Ao acionar o botão de emergência, apenas seus contatos de emergência cadastrados serão notificados.',
+                                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Simular no Supabase (recurring_victims):',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                  ),
+                                  Switch(
+                                    value: isCadastrada,
+                                    activeThumbColor: AppColors.primary,
+                                    onChanged: (val) async {
+                                      if (profileProvider.cpf.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Cadastre um CPF primeiro para simular o banco de vítimas.'),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      await PoliceAlertService.instance.alternarCpfNoBanco(
+                                        profileProvider.cpf,
+                                        profileProvider.nomeCompleto,
+                                      );
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    const Text(
+                      'CONFIGURAÇÕES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: AppColors.primary,
+                      title: const Text(
+                        'Compartilhar localização',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      value: settingsProvider.locationSharingEnabled,
+                      onChanged: (_) => settingsProvider.toggleLocationSharing(),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      activeThumbColor: AppColors.primary,
+                      title: const Text(
+                        'Alertas por push',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      value: settingsProvider.pushAlertsEnabled,
+                      onChanged: (_) => settingsProvider.togglePushAlerts(),
+                    ),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Identidade verificada',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      trailing: Chip(
+                        label: Text(
+                          'Verificada',
+                          style: TextStyle(color: Color(0xFF27500A), fontSize: 11),
+                        ),
+                        backgroundColor: Color(0xFFEAF3DE),
+                        side: BorderSide.none,
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                    const Text(
+                      'CONTATOS DE EMERGÊNCIA',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Renderiza a lista dinâmica mapeada direto do provider
+                    profileProvider.contatosEmergencia.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'Nenhum contato de emergência cadastrado.',
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
+                        : Column(
+                            children: profileProvider.contatosEmergencia.map((contato) {
+                              return _buildContactCard(
+                                contato['id'].toString(),
+                                contato['nome'] ?? 'Sem nome',
+                                contato['telefone'] ?? '',
+                                contato['parentesco'],
+                              );
+                            }).toList(),
+                          ),
+
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: () => _abrirModalAdicionarContato(profileProvider),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('+ Adicionar contato'),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-
-                const Text(
-                  'BANCO DE VÍTIMAS REINCIDENTES & POLÍCIA',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                FutureBuilder<bool>(
-                  future: PoliceAlertService.instance.isCpfCadastradoNoBanco(_cpf),
-                  builder: (context, snapshot) {
-                    final isCadastrada = snapshot.data ?? false;
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isCadastrada ? const Color(0xFFEFF6FF) : const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isCadastrada ? const Color(0xFF93C5FD) : const Color(0xFFFDE68A),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isCadastrada ? Icons.shield : Icons.warning_amber_rounded,
-                                color: isCadastrada ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  isCadastrada
-                                      ? 'Cadastrada no Banco de Vítimas Reincidentes'
-                                      : 'Não cadastrada no Banco de Vítimas Reincidentes',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isCadastrada ? const Color(0xFF1E3A8A) : const Color(0xFF92400E),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            isCadastrada
-                                ? '🚨 Ao acionar o botão de emergência, a Polícia Militar (190) receberá um alerta prioritário automático com a sua localização, além de notificar seus contatos de emergência.'
-                                : '⚠️ Ao acionar o botão de emergência, apenas seus contatos de emergência cadastrados serão notificados.',
-                            style: const TextStyle(fontSize: 12, color: Colors.black54),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Simular no Supabase (recurring_victims):',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                              Switch(
-                                value: isCadastrada,
-                                activeThumbColor: AppColors.primary,
-                                onChanged: (val) async {
-                                  if (_cpf.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Cadastre um CPF primeiro para simular o banco de vítimas.'),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  await PoliceAlertService.instance.alternarCpfNoBanco(_cpf, _nomeCompleto);
-                                  setState(() {});
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                const Text(
-                  'CONFIGURAÇÕES',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AppColors.primary,
-                  title: const Text(
-                    'Compartilhar localização',
-                    style: TextStyle(fontSize: 15),
-                  ),
-                  value: locShared,
-                  onChanged: (val) => setState(() => locShared = val),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AppColors.primary,
-                  title: const Text(
-                    'Alertas por push',
-                    style: TextStyle(fontSize: 15),
-                  ),
-                  value: pushAlerts,
-                  onChanged: (val) => setState(() => pushAlerts = val),
-                ),
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Identidade verificada',
-                    style: TextStyle(fontSize: 15),
-                  ),
-                  trailing: Chip(
-                    label: Text(
-                      'Verificada',
-                      style: TextStyle(color: Color(0xFF27500A), fontSize: 11),
-                    ),
-                    backgroundColor: Color(0xFFEAF3DE),
-                    side: BorderSide.none,
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-                const Text(
-                  'CONTATOS DE EMERGÊNCIA',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Renderiza a lista dinâmica mapeada direto do banco
-                _contatosEmergencia.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Nenhum contato de emergência cadastrado.',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                      )
-                    : Column(
-                        children: _contatosEmergencia.map((contato) {
-                          return _buildContactCard(
-                            contato['id'].toString(),
-                            contato['nome'] ?? 'Sem nome',
-                            contato['telefone'] ?? '',
-                            contato['parentesco'],
-                          );
-                        }).toList(),
-                      ),
-
-                const SizedBox(height: 16),
-                OutlinedButton(
-                  onPressed: _abrirModalAdicionarContato,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('+ Adicionar contato'),
-                ),
-              ],
-            ),
+        );
+      },
     );
   }
 }

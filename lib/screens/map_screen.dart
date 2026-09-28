@@ -8,6 +8,9 @@ import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:another_telephony/telephony.dart';
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../providers/map_provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/local_audio_service.dart';
 import '../services/police_alert_service.dart';
@@ -27,10 +30,7 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
   final supabase = Supabase.instance.client;
 
-  LatLng _minhaLocalizacao = const LatLng(-21.1355, -44.2616);
-  LatLng? _localSelecionado;
-  bool _usarLocalMarcadoParaAlerta = false;
-  bool _carregandoLocalizacao = true;
+  bool _enviandoPanico = false;
 
   @override
   void initState() {
@@ -39,30 +39,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _inicializarMapa() async {
-    await _obterLocalizacaoAtual();
-  }
-
-  Future<void> _obterLocalizacaoAtual() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
-
-    if (permission == LocationPermission.deniedForever) return;
-
-    Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _minhaLocalizacao = LatLng(position.latitude, position.longitude);
-      _carregandoLocalizacao = false;
-    });
-
-    mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(_minhaLocalizacao, 16.0),
-    );
+    await context.read<MapProvider>().getCurrentLocation();
   }
 
   Future<void> _salvarAlerta(
@@ -71,6 +48,7 @@ class _MapScreenState extends State<MapScreen> {
     bool isAnonimo,
     bool usarLocalMarcado,
   ) async {
+    final mapProvider = context.read<MapProvider>();
     final user = supabase.auth.currentUser;
 
     String tipoBanco = 'area_deserta';
@@ -78,22 +56,22 @@ class _MapScreenState extends State<MapScreen> {
     if (categoriaVisual == 'Iluminação ruim') tipoBanco = 'iluminacao_ruim';
     if (categoriaVisual == 'Perseguição') tipoBanco = 'perseguicao';
     if (categoriaVisual == 'Local suspeito') tipoBanco = 'area_deserta';
-          if (categoriaVisual == 'Acidente de trânsito') tipoBanco = 'acidente_transito';
-          if (categoriaVisual == 'Assalto') tipoBanco = 'assalto';
-          if (categoriaVisual == 'Furto') tipoBanco = 'furto';
-          if (categoriaVisual == 'Violência física') tipoBanco = 'violencia_fisica';
-          if (categoriaVisual == 'Presença de arma') tipoBanco = 'presenca_arma';
-          if (categoriaVisual == 'Incêndio ou fumaça') tipoBanco = 'incendio';
-          if (categoriaVisual == 'Via bloqueada') tipoBanco = 'via_bloqueada';
-          if (categoriaVisual == 'Emergência médica') tipoBanco = 'emergencia_medica';
+    if (categoriaVisual == 'Acidente de trânsito') tipoBanco = 'acidente_transito';
+    if (categoriaVisual == 'Assalto') tipoBanco = 'assalto';
+    if (categoriaVisual == 'Furto') tipoBanco = 'furto';
+    if (categoriaVisual == 'Violência física') tipoBanco = 'violencia_fisica';
+    if (categoriaVisual == 'Presença de arma') tipoBanco = 'presenca_arma';
+    if (categoriaVisual == 'Incêndio ou fumaça') tipoBanco = 'incendio';
+    if (categoriaVisual == 'Via bloqueada') tipoBanco = 'via_bloqueada';
+    if (categoriaVisual == 'Emergência médica') tipoBanco = 'emergencia_medica';
 
     try {
       final double lat;
       final double lng;
 
-      if (usarLocalMarcado && _localSelecionado != null) {
-        lat = _localSelecionado!.latitude;
-        lng = _localSelecionado!.longitude;
+      if (usarLocalMarcado && mapProvider.selectedLocation != null) {
+        lat = mapProvider.selectedLocation!.latitude;
+        lng = mapProvider.selectedLocation!.longitude;
       } else {
         final Position posicao = await Geolocator.getCurrentPosition();
         lat = posicao.latitude;
@@ -152,10 +130,8 @@ class _MapScreenState extends State<MapScreen> {
         'endereco': enderecoDescoberto,
       });
 
-      setState(() {
-        _localSelecionado = null;
-        _usarLocalMarcadoParaAlerta = false;
-      });
+      mapProvider.clearSelectedLocation();
+      mapProvider.setUseSelectedLocationForAlert(false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,8 +149,6 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
-
-  bool _enviandoPanico = false;
 
   // Aciona o botão de pânico: avisa os contatos de emergência (e-mail/SMS)
   // E também a polícia (mockado) caso o CPF conste no banco de vítimas reincidentes.
@@ -351,6 +325,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _abrirModalRisco(BuildContext context) {
+    final mapProvider = context.read<MapProvider>();
+
     setState(() {
       _modalAberto = true;
     });
@@ -369,7 +345,7 @@ class _MapScreenState extends State<MapScreen> {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             bool usarLocalMarcadoNoModal =
-                _localSelecionado != null && _usarLocalMarcadoParaAlerta;
+                mapProvider.selectedLocation != null && mapProvider.useSelectedLocationForAlert;
 
             final String textoOrigemLocal = usarLocalMarcadoNoModal
                 ? '📍 O alerta será registrado no ponto marcado no mapa'
@@ -410,7 +386,7 @@ class _MapScreenState extends State<MapScreen> {
                     textoOrigemLocal,
                     style: TextStyle(
                       fontSize: 12,
-                      color: _localSelecionado != null
+                      color: mapProvider.selectedLocation != null
                           ? AppColors.primary
                           : Colors.grey,
                     ),
@@ -432,9 +408,7 @@ class _MapScreenState extends State<MapScreen> {
                             setModalState(() {
                               usarLocalMarcadoNoModal = false;
                             });
-                            setState(() {
-                              _usarLocalMarcadoParaAlerta = false;
-                            });
+                            mapProvider.setUseSelectedLocationForAlert(false);
                           }
                         },
                       ),
@@ -442,16 +416,14 @@ class _MapScreenState extends State<MapScreen> {
                         label: const Text('Ponto marcado'),
                         selected: usarLocalMarcadoNoModal,
                         selectedColor: AppColors.primary.withAlpha(30),
-                        onSelected: _localSelecionado == null
+                        onSelected: mapProvider.selectedLocation == null
                             ? null
                             : (selected) {
                                 if (selected) {
                                   setModalState(() {
                                     usarLocalMarcadoNoModal = true;
                                   });
-                                  setState(() {
-                                    _usarLocalMarcadoParaAlerta = true;
-                                  });
+                                  mapProvider.setUseSelectedLocationForAlert(true);
                                 }
                               },
                       ),
@@ -494,14 +466,14 @@ class _MapScreenState extends State<MapScreen> {
                         AppColors.riskSuspeitoBg,
                         AppColors.riskSuspeitoText,
                       ),
-                            _buildEscolha(setModalState, 'Acidente de trânsito', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAcidenteBg, AppColors.riskAcidenteText),
-                            _buildEscolha(setModalState, 'Assalto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAssaltoBg, AppColors.riskAssaltoText),
-                            _buildEscolha(setModalState, 'Furto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskFurtoBg, AppColors.riskFurtoText),
-                            _buildEscolha(setModalState, 'Violência física', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViolenciaBg, AppColors.riskViolenciaText),
-                            _buildEscolha(setModalState, 'Presença de arma', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskArmaBg, AppColors.riskArmaText),
-                            _buildEscolha(setModalState, 'Incêndio ou fumaça', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskIncendioBg, AppColors.riskIncendioText),
-                            _buildEscolha(setModalState, 'Via bloqueada', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViaBloqueadaBg, AppColors.riskViaBloqueadaText),
-                            _buildEscolha(setModalState, 'Emergência médica', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskEmergenciaMedicaBg, AppColors.riskEmergenciaMedicaText),
+                      _buildEscolha(setModalState, 'Acidente de trânsito', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAcidenteBg, AppColors.riskAcidenteText),
+                      _buildEscolha(setModalState, 'Assalto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskAssaltoBg, AppColors.riskAssaltoText),
+                      _buildEscolha(setModalState, 'Furto', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskFurtoBg, AppColors.riskFurtoText),
+                      _buildEscolha(setModalState, 'Violência física', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViolenciaBg, AppColors.riskViolenciaText),
+                      _buildEscolha(setModalState, 'Presença de arma', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskArmaBg, AppColors.riskArmaText),
+                      _buildEscolha(setModalState, 'Incêndio ou fumaça', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskIncendioBg, AppColors.riskIncendioText),
+                      _buildEscolha(setModalState, 'Via bloqueada', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskViaBloqueadaBg, AppColors.riskViaBloqueadaText),
+                      _buildEscolha(setModalState, 'Emergência médica', categoriaSelecionada, (val) => categoriaSelecionada = val, AppColors.riskEmergenciaMedicaBg, AppColors.riskEmergenciaMedicaText),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -614,152 +586,154 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.shield_outlined, color: Colors.white, size: 34),
-            SizedBox(width: 8),
-            Text('vigIA', style: TextStyle(color: Colors.white)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            tooltip: 'Sair',
-            onPressed: () async {
-              await Supabase.instance.client.auth.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            onMapCreated: (controller) => mapController = controller,
-            initialCameraPosition: CameraPosition(
-              target: _minhaLocalizacao,
-              zoom: 15.0,
+    return Consumer<MapProvider>(
+      builder: (context, mapProvider, _) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.shield_outlined, color: Colors.white, size: 34),
+                SizedBox(width: 8),
+                Text('vigIA', style: TextStyle(color: Colors.white)),
+              ],
             ),
-            markers: _localSelecionado != null
-                ? {
-                    Marker(
-                      markerId: const MarkerId('pino_manual'),
-                      position: _localSelecionado!,
-                      icon: BitmapDescriptor.defaultMarkerWithHue(
-                        BitmapDescriptor.hueBlue,
-                      ),
-                      infoWindow: const InfoWindow(
-                        title: 'Local selecionado',
-                        snippet: 'Relatar risco aqui',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                tooltip: 'Sair',
+                onPressed: () async {
+                  await context.read<AuthProvider>().signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              GoogleMap(
+                onMapCreated: (controller) => mapController = controller,
+                initialCameraPosition: CameraPosition(
+                  target: mapProvider.currentLocation,
+                  zoom: 15.0,
+                ),
+                markers: mapProvider.selectedLocation != null
+                    ? {
+                        Marker(
+                          markerId: const MarkerId('pino_manual'),
+                          position: mapProvider.selectedLocation!,
+                          icon: BitmapDescriptor.defaultMarkerWithHue(
+                            BitmapDescriptor.hueBlue,
+                          ),
+                          infoWindow: const InfoWindow(
+                            title: 'Local selecionado',
+                            snippet: 'Relatar risco aqui',
+                          ),
+                        ),
+                      }
+                    : {},
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
+                onTap: (LatLng position) {
+                  if (_modalAberto) return;
+                  mapProvider.selectLocation(position);
+                  mapProvider.setUseSelectedLocationForAlert(true);
+                },
+              ),
+              if (mapProvider.isLoadingLocation)
+                const Center(child: CircularProgressIndicator()),
+              if (mapProvider.selectedLocation != null)
+                Positioned(
+                  bottom: 132,
+                  right: 24,
+                  child: FloatingActionButton.small(
+                    heroTag: 'clear_btn',
+                    backgroundColor: Colors.white,
+                    onPressed: () {
+                      mapProvider.clearSelectedLocation();
+                      mapProvider.setUseSelectedLocationForAlert(false);
+                    },
+                    child: const Icon(Icons.close, color: Colors.black54),
+                  ),
+                ),
+              Positioned(
+                bottom: 24,
+                left: 16,
+                child: SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: FloatingActionButton(
+                    heroTag: 'sos_btn',
+                    shape: const CircleBorder(
+                      side: BorderSide(color: Colors.black, width: 3),
+                    ),
+                    backgroundColor: AppColors.sosRed,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SosScreen()),
+                      );
+                    },
+                    child: const Text(
+                      'SOS', 
+                      style: TextStyle(
+                        color: Colors.white, 
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
                       ),
                     ),
-                  }
-                : {},
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: false,
-            onTap: (LatLng position) {
-              if (_modalAberto) return;
-              setState(() {
-                _localSelecionado = position;
-                _usarLocalMarcadoParaAlerta = true;
-              });
-            },
-          ),
-          if (_carregandoLocalizacao)
-            const Center(child: CircularProgressIndicator()),
-          if (_localSelecionado != null)
-            Positioned(
-              bottom: 132,
-              right: 24,
-              child: FloatingActionButton.small(
-                heroTag: 'clear_btn',
-                backgroundColor: Colors.white,
-                onPressed: () => setState(() {
-                  _localSelecionado = null;
-                  _usarLocalMarcadoParaAlerta = false;
-                }),
-                child: const Icon(Icons.close, color: Colors.black54),
-              ),
-            ),
-          Positioned(
-            bottom: 24,
-            left: 16,
-            child: SizedBox(
-              width: 80,
-              height: 80,
-              child: FloatingActionButton(
-                heroTag: 'sos_btn',
-                shape: const CircleBorder(
-                  side: BorderSide(color: Colors.black, width: 3),
-                ),
-                backgroundColor: AppColors.sosRed,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SosScreen()),
-                  );
-                },
-                child: const Text(
-                  'SOS', 
-                  style: TextStyle(
-                    color: Colors.white, 
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
                   ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 24,
-            right: 16,
-            child: Material(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(12),
-              elevation: 4,
-              child: InkWell(
-                onTap: () => _abrirModalRisco(context),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: const [
-                          Icon(Icons.warning_rounded, color: Colors.black, size: 54),
-                          Icon(Icons.warning_rounded, color: Colors.yellow, size: 48),
+              Positioned(
+                bottom: 24,
+                right: 16,
+                child: Material(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(12),
+                  elevation: 4,
+                  child: InkWell(
+                    onTap: () => _abrirModalRisco(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Stack(
+                            alignment: Alignment.center,
+                            children: const [
+                              Icon(Icons.warning_rounded, color: Colors.black, size: 54),
+                              Icon(Icons.warning_rounded, color: Colors.yellow, size: 48),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Alerta',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Alerta',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
