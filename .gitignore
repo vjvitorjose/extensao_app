@@ -48,3 +48,10 @@ app.*.map.json
 .env
 .vercel
 .env*.local
+
+# Dados gerados pelos scrapers (nao versionar conteudo de terceiros)
+scripts/data/
+
+# Cache Python
+scripts/populators/__pycache__/
+scripts/scrapers/__pycache__/

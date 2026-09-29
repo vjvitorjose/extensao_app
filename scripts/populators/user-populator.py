@@ -101,7 +101,7 @@ REQUEST_RATE_LIMITER = RequestRateLimiter(2)
 
 def load_dotenv_file() -> None:
 	"""Carrega variaveis simples do arquivo .env sem substituir o ambiente."""
-	env_path = Path(__file__).resolve().parents[1] / ".env"
+	env_path = Path(__file__).resolve().parents[2] / ".env"
 	if not env_path.exists():
 		return
 

@@ -32,7 +32,7 @@ rate_limiter = RequestRateLimiter(REQUESTS_PER_SECOND)
 
 
 def load_dotenv_file() -> None:
-	env_path = Path(__file__).resolve().parents[1] / ".env"
+	env_path = Path(__file__).resolve().parents[2] / ".env"
 	if not env_path.exists():
 		return
 

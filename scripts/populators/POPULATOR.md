@@ -1,6 +1,7 @@
 # Populacao do banco
 
-Este diretorio (scripts/) possui scripts Python para criar dados ficticios no Supabase durante o desenvolvimento.
+Este diretorio (scripts/populators/) possui scripts Python para criar dados
+ficticios no Supabase durante o desenvolvimento.
 
 ## Pre-requisitos
 
@@ -14,21 +15,31 @@ SUPABASE_ANON_KEY=sua-chave-anon
 SUPABASE_SERVICE_ROLE_KEY=sua-chave-service-role
 ```
 
-A `SUPABASE_SERVICE_ROLE_KEY` é necessaria porque os scripts acessam a API administrativa do Supabase Auth. Ela deve ser usada somente em scripts locais ou em ambiente seguro, nunca no aplicativo Flutter distribuido.
+A `SUPABASE_SERVICE_ROLE_KEY` e necessaria porque os scripts acessam a API
+administrativa do Supabase Auth. Ela deve ser usada somente em scripts locais
+ou em ambiente seguro, nunca no aplicativo Flutter distribuido.
 
-Os scripts carregam automaticamente as variaveis do arquivo `.env` e nao substituem variaveis que ja estejam definidas no ambiente.
+Os scripts carregam automaticamente as variaveis do arquivo `.env` e nao
+substituem variaveis que ja estejam definidas no ambiente.
 
 ## Ordem recomendada
 
-Execute os scripts nesta ordem:
+Execute os scripts nesta ordem a partir da raiz do projeto:
 
 ```powershell
-py scripts\user-populator.py
-py scripts\emergency-contact-populator.py
-py scripts\danger-report-populator.py
+# 1. Cria os usuarios
+py scripts\populators\user-populator.py
+
+# 2. Cria os contatos de emergencia
+py scripts\populators\emergency-contact-populator.py
+
+# 3. Insere os alertas de perigo
+py scripts\populators\danger-report-populator.py
 ```
 
-O primeiro script cria os usuarios que os dois scripts seguintes usam como referencia.
+O primeiro script cria os usuarios que os dois scripts seguintes usam como
+referencia. Para enriquecer os alertas com dados reais antes do passo 3,
+execute primeiro os scrapers (veja `scripts/scrapers/SCRAPER.md`).
 
 ## 1. Usuarios artificiais
 
@@ -43,7 +54,9 @@ O script gera 1000 usuarios ficticios:
 - CPFs ficticios com digitos verificadores validos e unicos.
 - E-mails e senhas unicos para teste.
 
-Antes de criar uma conta, o script lista os usuarios existentes no Auth e procura pelo e-mail. Usuarios ja existentes nao sao criados novamente. O perfil em `profiles` e salvo com `upsert`, usando o mesmo `id` da conta Auth.
+Antes de criar uma conta, o script lista os usuarios existentes no Auth e
+procura pelo e-mail. Usuarios ja existentes nao sao criados novamente. O perfil
+em `profiles` e salvo com `upsert`, usando o mesmo `id` da conta Auth.
 
 O script atualiza `profiles` com:
 
@@ -56,7 +69,10 @@ O script atualiza `profiles` com:
 
 Arquivo: `emergency-contact-populator.py`
 
-Para cada um dos 1000 usuarios artificiais, o script seleciona os dois usuarios seguintes da lista como contatos, em rotacao. Por exemplo, os contatos do primeiro usuario sao o segundo e o terceiro; os contatos do ultimo sao o primeiro e o segundo.
+Para cada um dos 1000 usuarios artificiais, o script seleciona os dois usuarios
+seguintes da lista como contatos, em rotacao. Por exemplo, os contatos do
+primeiro usuario sao o segundo e o terceiro; os contatos do ultimo sao o
+primeiro e o segundo.
 
 Esse modelo garante que:
 
@@ -88,7 +104,9 @@ Cada execucao:
 6. Gera coordenadas aleatorias concentradas na area urbana de Sao Joao del-Rei, MG.
 7. Insere os registros em `danger_reports`.
 
-Assim, cada execucao cria entre 5 e 15 alertas. Os alertas nao sao deduplicados: executar o script novamente cria novos registros, mesmo para usuarios que ja receberam alertas.
+Assim, cada execucao cria entre 5 e 15 alertas. Os alertas nao sao
+deduplicados: executar o script novamente cria novos registros, mesmo para
+usuarios que ja receberam alertas.
 
 Os tipos usados sao:
 
@@ -114,7 +132,8 @@ Cada registro inclui:
 - `longitude`
 - `endereco`
 
-As coordenadas sao ficticias. O script usa limites aproximados da area urbana, nao o poligono oficial do municipio.
+As coordenadas sao ficticias. O script usa limites aproximados da area urbana,
+nao o poligono oficial do municipio.
 
 ### Coordenadas e distancia
 
@@ -135,7 +154,9 @@ Depois da geracao, os valores sao limitados a esta caixa urbana aproximada:
 - Longitude minima: `-44.30`
 - Longitude maxima: `-44.22`
 
-Considerando o centro e o canto mais distante dessa caixa, a distancia maxima aproximada e de `5,8 km`. A caixa é um limite retangular aproximado; ela nao representa o limite administrativo oficial do municipio.
+Considerando o centro e o canto mais distante dessa caixa, a distancia maxima
+aproximada e de `5,8 km`. A caixa e um limite retangular aproximado; ela nao
+representa o limite administrativo oficial do municipio.
 
 ## Rate limiting
 
@@ -150,7 +171,7 @@ No `user-populator.py`, o limite pode ser alterado pelo ambiente:
 
 ```powershell
 $env:SUPABASE_REQUESTS_PER_SECOND="1"
-py scripts\user-populator.py
+py scripts\populators\user-populator.py
 ```
 
 Os outros scripts usam atualmente o limite fixo de 2 requisicoes por segundo.
@@ -166,9 +187,9 @@ Os outros scripts usam atualmente o limite fixo de 2 requisicoes por segundo.
 Para verificar a sintaxe de um script sem executar sua funcao principal:
 
 ```powershell
-py -m py_compile scripts\user-populator.py
-py -m py_compile scripts\emergency-contact-populator.py
-py -m py_compile scripts\danger-report-populator.py
+py -m py_compile scripts\populators\user-populator.py
+py -m py_compile scripts\populators\emergency-contact-populator.py
+py -m py_compile scripts\populators\danger-report-populator.py
 ```
 
 Esses comandos apenas compilam os arquivos e nao fazem requisicoes ao Supabase.
