@@ -4,7 +4,6 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_colors.dart';
 import 'screens/auth_gate.dart';
-import 'screens/admin_map_screen.dart';
 
 Future<void> main() async {
   usePathUrlStrategy();
@@ -35,28 +34,7 @@ class VigIAApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      onGenerateInitialRoutes: (initialRoute) {
-        final uri = Uri.base;
-        final path = uri.path.toLowerCase();
-        final fragment = uri.fragment.toLowerCase();
-        final isAdmin = path == '/adm' ||
-            path == '/adm/' ||
-            path.endsWith('/adm') ||
-            path.endsWith('/adm/') ||
-            fragment == '/adm' ||
-            fragment == 'adm' ||
-            fragment.endsWith('/adm') ||
-            initialRoute == '/adm';
-
-        if (isAdmin) {
-          return [
-            MaterialPageRoute(
-              builder: (_) => const AdminMapScreen(),
-              settings: const RouteSettings(name: '/adm'),
-            ),
-          ];
-        }
-
+     onGenerateInitialRoutes: (initialRoute) {
         return [
           MaterialPageRoute(
             builder: (_) => const AuthGate(),
@@ -65,12 +43,6 @@ class VigIAApp extends StatelessWidget {
         ];
       },
       onGenerateRoute: (settings) {
-        if (settings.name == '/adm') {
-          return MaterialPageRoute(
-            builder: (_) => const AdminMapScreen(),
-            settings: settings,
-          );
-        }
         return MaterialPageRoute(
           builder: (_) => const AuthGate(),
           settings: settings,
