@@ -64,6 +64,24 @@ py scripts\scrapers\emboabas.py
 **Rate limiting:** pausa de 0,5 s entre paginas; respostas HTTP 429 sao
 repetidas ate 3 vezes respeitando o header `Retry-After`.
 
+### g1_sao_joao_del_rei.py
+
+**Fonte:** https://g1.globo.com/mg/zona-da-mata/ — G1 Zona da Mata
+
+**Metodo:** Leitura do RSS Feed Oficial nativo do G1, com filtragem local por texto. Nenhuma dependencia externa necessaria.
+
+**Categorias coletadas:** Feed de Noticias de toda a Zona da Mata e Campo das Vertentes. O script filtra automaticamente os itens que mencionam "São João del Rei" no título ou descrição.
+
+**Saida:** `scripts/data/g1_sao_joao_del_rei_reports.json`
+
+O JSON gerado segue exatamente o mesmo padrão do `emboabas.py`.
+
+**Execucao:**
+
+```powershell
+py scripts\scrapers\g1_sao_joao_del_rei.py
+```
+
 ## Repeticao segura
 
 Todos os scrapers sobrescrevem o arquivo de saida a cada execucao. Nao ha
