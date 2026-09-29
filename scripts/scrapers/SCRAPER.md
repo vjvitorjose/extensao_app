@@ -1,7 +1,8 @@
 # Scrapers
 
-Este diretorio (scripts/scrapers/) possui scripts Python para coletar dados
-reais de fontes publicas e gerar arquivos JSON consumidos pelos populators.
+Este diretorio (`scripts/scrapers/`) possui três scripts Python independentes para
+coletar dados reais de fontes publicas. Emboabas e G1 geram arquivos JSON; a
+SEJUSP gera arquivos CSV filtrados para Sao Joao del-Rei.
 
 Os dados coletados ficam em `scripts/data/` (pasta ignorada pelo Git, pois
 contem conteudo de terceiros).
@@ -12,16 +13,19 @@ contem conteudo de terceiros).
 - Sem dependencias externas: todos os scrapers usam apenas a stdlib do Python.
 - Conexao com a internet no momento da execucao.
 
-## Ordem recomendada
+## Execucao
 
-Execute os scrapers antes dos populators, a partir da raiz do projeto:
+Execute da raiz do projeto. Rode os scrapers que desejar; nenhum depende dos
+outros:
 
 ```powershell
-# Coleta ocorrencias de seguranca publica do Emboabas
 py scripts\scrapers\emboabas.py
+py scripts\scrapers\g1_sao_joao_del_rei.py
+py scripts\scrapers\sejusp.py
 ```
 
-Depois, execute os populators normalmente (veja `scripts/populators/POPULATOR.md`).
+Os populators sao rotinas separadas; consulte `scripts/populators/POPULATOR.md`
+para instrucoes proprias.
 
 ## Scrapers disponíveis
 
@@ -82,14 +86,46 @@ O JSON gerado segue exatamente o mesmo padrão do `emboabas.py`.
 py scripts\scrapers\g1_sao_joao_del_rei.py
 ```
 
+### sejusp.py
+
+**Fonte:** [Portal de Dados Abertos de Minas Gerais](https://www.dados.mg.gov.br/),
+plataforma CKAN utilizada pela SEJUSP-MG.
+
+**Metodo:** consulta a API CKAN (`resource_show`) para obter os metadados e a URL
+oficial dos recursos definidos na lista `RESOURCE_URLS` dentro do script; em
+seguida, baixa cada CSV e mantém somente registros de São João del-Rei. Nao
+requer dependencias externas.
+
+```powershell
+py scripts\scrapers\sejusp.py
+```
+
+O script esta configurado com 12 recursos: Crimes Violentos, Feminicidio,
+Violencia Domestica e Vitimas de Acidentes de Transito, cada um para 2024, 2025
+e 2026. Recursos que nao sejam identificados como CSV sao recusados.
+
+**Saida:** cada CSV filtrado e salvo diretamente em `scripts/data/<arquivo>.csv`;
+nenhum arquivo lateral de metadados ou subpasta SEJUSP e criado. Os nomes dos
+arquivos distinguem conjunto e ano. O filtro usa o código IBGE `316250` nas
+colunas municipais próprias de cada conjunto. Cabeçalho, colunas e delimitador
+`;` são mantidos. A quantidade de linhas baixadas e mantidas aparece no
+terminal. Se um recurso não tiver registros da cidade, o CSV conterá apenas o
+cabeçalho. Os arquivos não são convertidos ao esquema de notícias/alertas usado
+por Emboabas e G1.
+
+**Referencias:** [conjunto Crimes Violentos](https://www.dados.mg.gov.br/dataset/crimes-violentos)
+e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
+
 ## Repeticao segura
 
-Todos os scrapers sobrescrevem o arquivo de saida a cada execucao. Nao ha
-deduplicacao entre execucoes: rodar novamente gera um JSON atualizado com os
-posts mais recentes.
+Emboabas e G1 sobrescrevem seus arquivos JSON a cada execucao. O scraper SEJUSP
+tambem substitui somente os CSVs filtrados no mesmo caminho; os CSVs originais
+completos não são mantidos localmente. Todos os CSVs SEJUSP ficam diretamente em
+`scripts/data/` e recursos diferentes permanecem em arquivos separados.
 
 ## Validacao sem acessar a internet
 
 ```powershell
 py -m py_compile scripts\scrapers\emboabas.py
+py -m py_compile scripts\scrapers\sejusp.py
 ```
