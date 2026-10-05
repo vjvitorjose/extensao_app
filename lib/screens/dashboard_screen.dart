@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../theme/app_colors.dart';
 import '../widgets/admin_drawer.dart';
+import '../widgets/heatmap_web.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,6 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _tipoPerigo;
   String? _nivelRisco;
   bool _focoMulher = false;
+  bool _modoHeatmap = false;
 
   @override
   void initState() {
@@ -321,13 +324,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 height: 400,
-                child: GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: LatLng(-21.135, -44.261), // SJDR
-                    zoom: 13,
-                  ),
-                  markers: markers,
-                  myLocationButtonEnabled: false,
+                child: Stack(
+                  children: [
+                    if (kIsWeb && _modoHeatmap)
+                      WebHeatmapMap(reports: _filteredReports)
+                    else
+                      GoogleMap(
+                        initialCameraPosition: const CameraPosition(
+                          target: LatLng(-21.135, -44.261), // SJDR
+                          zoom: 13,
+                        ),
+                        markers: _modoHeatmap ? const {} : markers,
+                        heatmaps: _modoHeatmap ? _buildHeatmaps() : const {},
+                        myLocationButtonEnabled: false,
+                      ),
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: SegmentedButton<bool>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(value: false, label: Text('Marcadores')),
+                          ButtonSegment(value: true, label: Text('Mapa de Calor')),
+                        ],
+                        selected: {_modoHeatmap},
+                        onSelectionChanged: (selection) {
+                          setState(() => _modoHeatmap = selection.first);
+                        },
+                      ),
+                    ),
+                    if (_filteredReports.isEmpty)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          child: const Center(
+                            child: Text('Nenhum dado'),
+                          ),
+                        ),
+                      ),
+                    if (_modoHeatmap)
+                      Positioned(
+                        left: 12,
+                        bottom: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Verde → menor | Vermelho → maior',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -738,6 +789,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  double _pesoPorRisco(dynamic nivelRisco) {
+    final risco = nivelRisco?.toString().toLowerCase() ?? '';
+    if (risco == 'alto') return 1.0;
+    if (risco == 'medio') return 0.6;
+    if (risco == 'baixo') return 0.3;
+    return 0.5;
+  }
+
+  Set<Heatmap> _buildHeatmaps() {
+    final heatmapData = <WeightedLatLng>[];
+    for (var r in _filteredReports) {
+      final lat = r['latitude'];
+      final lng = r['longitude'];
+      double? latDouble;
+      double? lngDouble;
+      if (lat is num) {
+        latDouble = lat.toDouble();
+      } else if (lat is String) {
+        latDouble = double.tryParse(lat);
+      }
+      if (lng is num) {
+        lngDouble = lng.toDouble();
+      } else if (lng is String) {
+        lngDouble = double.tryParse(lng);
+      }
+      if (latDouble != null && lngDouble != null) {
+        heatmapData.add(
+          WeightedLatLng(
+            LatLng(latDouble, lngDouble),
+            weight: _pesoPorRisco(r['nivel_risco']),
+          ),
+        );
+      }
+    }
+    return {
+      Heatmap(
+        heatmapId: const HeatmapId('ocorrencias'),
+        data: heatmapData,
+        radius: const HeatmapRadius.fromPixels(30),
+        opacity: 0.7,
+        dissipating: true,
+        gradient: const HeatmapGradient(
+          [
+            HeatmapGradientColor(Colors.green, 0.0),
+            HeatmapGradientColor(Colors.yellow, 0.5),
+            HeatmapGradientColor(Colors.red, 1.0),
+          ],
+        ),
+      ),
+    };
   }
 
   String _formatTypeLabel(String tipo) {

@@ -47,6 +47,9 @@ dependencies:
   share_plus: ^10.1.4
   url_launcher: ^6.3.2
   fl_chart: ^1.2.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_map_heatmap: ^0.0.8
 
 dev_dependencies:
   flutter_test:
