@@ -86,6 +86,67 @@ O JSON gerado segue exatamente o mesmo padrão do `emboabas.py`.
 py scripts\scrapers\g1_sao_joao_del_rei.py
 ```
 
+### instagram_news.py
+
+**Fonte:** Instagram — perfis de noticias de Sao Joao del-Rei
+
+**Metodo:** instaloader (biblioteca Python para scraping de Instagram)
+
+**Perfis monitorados:**
+
+| Perfil | Foco |
+|--------|------|
+| `popnewsjdr` | Noticias gerais da cidade |
+| `sjdr.prefeitura` | Comunicados oficiais da prefeitura
+
+**Saida:** `scripts/data/instagram_news_reports.json`
+
+Cada entrada do JSON possui os campos:
+
+| Campo               | Descricao                                                      |
+|---------------------|----------------------------------------------------------------|
+| `titulo`            | Titulo do post (primeiros 100 chars da legenda)                |
+| `descricao`         | Primeiras 2-3 frases; pronto para uso no populador             |
+| `conteudo_completo` | Legenda completa do post (para classificacao via LLM)          |
+| `endereco`          | Bairro/rua extraido por regex da legenda (pode ser `null`)     |
+| `fonte_url`         | URL do post no Instagram                                       |
+| `fonte_data`        | Data de publicacao (ISO 8601)                                  |
+| `fonte_perfil`      | Perfil de origem do post                                       |
+| `tipo_midia`        | Tipo de midia: `imagem`, `video` ou `carousel`                 |
+| `localizacao_marcada` | Localizacao marcada no post (se houver)                      |
+| `tipo_perigo`       | Tipo de perigo classificado por palavras-chave                 |
+
+**Execucao:**
+
+```powershell
+py scripts\scrapers\instagram_news.py
+```
+
+**Pre-requisitos:**
+
+```powershell
+pip install instaloader
+```
+
+**Autenticacao (recomendada):**
+
+Para evitar bloqueios do Instagram (HTTP 429), configure as credenciais
+no arquivo `.env` na raiz do projeto:
+
+```env
+INSTAGRAM_LOGIN=seu_usuario
+INSTAGRAM_PASSWORD=sua_senha
+```
+
+Sem login, o Instagram frequentemente bloqueia requisicoes apos poucas
+tentativas. Com login, o scraper funciona de forma estavel.
+
+**Rate limiting:**
+
+- Pausa de 2 s entre posts
+- Pausa de 5 s entre perfis
+- Em caso de HTTP 429, aguarda 60 s e tenta novamente (max 3 tentativas)
+
 ### sejusp.py
 
 **Fonte:** [Portal de Dados Abertos de Minas Gerais](https://www.dados.mg.gov.br/),
@@ -118,7 +179,7 @@ e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 
 ## Repeticao segura
 
-Emboabas e G1 sobrescrevem seus arquivos JSON a cada execucao. O scraper SEJUSP
+Emboabas, G1 e Instagram sobrescrevem seus arquivos JSON a cada execucao. O scraper SEJUSP
 tambem substitui somente os CSVs filtrados no mesmo caminho; os CSVs originais
 completos não são mantidos localmente. Todos os CSVs SEJUSP ficam diretamente em
 `scripts/data/` e recursos diferentes permanecem em arquivos separados.

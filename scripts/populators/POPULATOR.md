@@ -108,6 +108,40 @@ Assim, cada execucao cria entre 5 e 15 alertas. Os alertas nao sao
 deduplicados: executar o script novamente cria novos registros, mesmo para
 usuarios que ja receberam alertas.
 
+### 3.1. Alertas a partir do Instagram
+
+O populador tambem pode criar relatos a partir de noticias reais coletadas
+do Instagram pelo scraper `instagram_news.py`.
+
+**Pre-requisitos:**
+
+1. Execute o scraper do Instagram primeiro:
+   ```powershell
+   py scripts\scrapers\instagram_news.py
+   ```
+
+2. O arquivo `scripts/data/instagram_news_reports.json` sera gerado com as
+   noticias classificadas.
+
+**Execucao:**
+
+```powershell
+py scripts\populators\danger-report-populator.py --from-instagram
+```
+
+**Comportamento:**
+
+- Le o JSON gerado pelo scraper
+- Filtra apenas noticias com `tipo_perigo` classificado
+- Seleciona um usuario artificial aleatorio para cada relato
+- Usa a localizacao marcada no post (se houver) ou gera coordenadas aleatorias
+- Insere os registros em `danger_reports` com os campos:
+  - `usuario_id`: usuario artificial selecionado
+  - `tipo_perigo`: tipo classificado pelo scraper
+  - `descricao`: descricao gerada pelo scraper
+  - `latitude`/`longitude`: coordenadas da localizacao
+  - `endereco`: endereco extraido da legenda ou "Sao Joao del-Rei, MG"
+
 Os tipos usados sao:
 
 - `assedio`

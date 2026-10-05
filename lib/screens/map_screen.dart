@@ -272,6 +272,10 @@ class _MapScreenState extends State<MapScreen> {
         await _enviarSmsAndroid(nomeUsuaria, contatos, lat, lng);
       }
 
+      // 4.1. Também enfileira os contatos na sms_queue para o bot do WhatsApp
+      // ler e enviar a mensagem via WhatsApp Web.
+      await _enfileirarAlertasWhatsapp(nomeUsuaria, contatos, lat, lng);
+
       // 5. Inicia a gravação local de áudio automaticamente.
       await LocalAudioService.instance.startRecording(
         locationLabel: 'SOS acionado em ${DateTime.now().toLocal().toString().split('.')[0]}',
@@ -347,6 +351,39 @@ class _MapScreenState extends State<MapScreen> {
       }
     } catch (e) {
       debugPrint('Erro ou permissão de SMS negada no Android: $e');
+    }
+  }
+
+  Future<void> _enfileirarAlertasWhatsapp(
+    String nomeUsuaria,
+    List<Map<String, dynamic>> contatos,
+    double? lat,
+    double? lng,
+  ) async {
+    final linkMapa = (lat != null && lng != null)
+        ? 'https://www.google.com/maps?q=$lat,$lng'
+        : 'localização indisponível';
+    final mensagem =
+        '🚨 $nomeUsuaria acionou um alerta de emergência (vigIA). '
+        'Localização: $linkMapa';
+
+    for (final contato in contatos) {
+      final telefone = (contato['telefone'] ?? '').toString().trim();
+      // Ignora contatos sem telefone ou com formato inválido (menos de 8 dígitos).
+      final apenasDigitos = telefone.replaceAll(RegExp(r'\D'), '');
+      if (telefone.isEmpty || apenasDigitos.length < 8) {
+        debugPrint('Contato sem telefone válido, ignorado na fila: ${contato['nome']}');
+        continue;
+      }
+      try {
+        await supabase.from('sms_queue').insert({
+          'numero': telefone,
+          'mensagem': mensagem,
+          'status': 'pendente',
+        });
+      } catch (e) {
+        debugPrint('Falha ao enfileirar alerta para $telefone: $e');
+      }
     }
   }
 

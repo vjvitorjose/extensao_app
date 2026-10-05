@@ -1,5 +1,6 @@
 """Cria danger_reports ficticios para usuarios artificiais em Sao Joao del-Rei."""
 
+import argparse
 import json
 import os
 import random
@@ -176,9 +177,89 @@ def populate_danger_reports() -> None:
 	print(f"Total de danger_reports criados: {reports_created}")
 
 
+def populate_from_instagram() -> None:
+	"""Cria danger_reports a partir de noticias coletadas do Instagram.
+
+	Le o arquivo JSON gerado pelo scraper instagram_news.py e insere
+	relatos de perigo no Supabase para cada noticia classificada.
+	"""
+	load_dotenv_file()
+	base_url = os.environ.get("SUPABASE_URL")
+	service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+	if not base_url or not service_role_key:
+		raise RuntimeError("Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY antes de executar.")
+
+	reports_file = Path(__file__).resolve().parents[1] / "scrapers" / "data" / "instagram_news_reports.json"
+	if not reports_file.exists():
+		print("Arquivo de noticias do Instagram nao encontrado.")
+		print("Execute primeiro: py scripts/scrapers/instagram_news.py")
+		return
+
+	reports = json.loads(reports_file.read_text(encoding="utf-8"))
+	if not reports:
+		print("Nenhuma noticia encontrada no arquivo do scraper.")
+		return
+
+	# Filtrar apenas noticias com tipo_perigo classificado
+	classified_reports = [r for r in reports if r.get("tipo_perigo")]
+	if not classified_reports:
+		print("Nenhuma noticia classificada como perigo encontrada.")
+		return
+
+	print(f"[instagram] {len(classified_reports)} noticias classificadas encontradas.")
+
+	# Selecionar um usuario artificial aleatorio para cada relato
+	artificial_users = run_path(str(USER_POPULATOR_PATH), run_name="user_populator")["USERS"]
+	auth_users = list_auth_users(base_url, service_role_key)
+
+	reports_created = 0
+	for report in classified_reports:
+		# Selecionar usuario aleatorio
+		user = random.choice(artificial_users)
+		user_id = auth_users[user["email"].lower()]["id"]
+
+		# Gerar coordenadas
+		if report.get("localizacao_marcada"):
+			lat = report["localizacao_marcada"].get("latitude", URBAN_CENTER_LATITUDE)
+			lng = report["localizacao_marcada"].get("longitude", URBAN_CENTER_LONGITUDE)
+		else:
+			lat, lng = generate_urban_coordinates(random)
+
+		# Inserir no Supabase
+		supabase_request(
+			base_url,
+			service_role_key,
+			"/rest/v1/danger_reports",
+			"POST",
+			{
+				"usuario_id": user_id,
+				"tipo_perigo": report["tipo_perigo"],
+				"descricao": report["descricao"],
+				"latitude": lat,
+				"longitude": lng,
+				"endereco": report.get("endereco") or "Sao Joao del-Rei, MG",
+			},
+		)
+		reports_created += 1
+		print(f"  Relato criado: {report['titulo'][:50]}... ({report['tipo_perigo']})")
+
+	print(f"\n[instagram] Total de danger_reports criados: {reports_created}")
+
+
 if __name__ == "__main__":
+	parser = argparse.ArgumentParser(description="Populador de danger_reports")
+	parser.add_argument(
+		"--from-instagram",
+		action="store_true",
+		help="Cria relatos a partir de noticias coletadas do Instagram",
+	)
+	args = parser.parse_args()
+
 	try:
-		populate_danger_reports()
+		if args.from_instagram:
+			populate_from_instagram()
+		else:
+			populate_danger_reports()
 	except (HTTPError, URLError) as error:
 		detail = error.read().decode("utf-8") if isinstance(error, HTTPError) else str(error)
 		raise RuntimeError(f"Falha na comunicacao com o Supabase: {detail}") from error
