@@ -1,5 +1,6 @@
 """Classifica noticias locais com Gemini Flash-Lite."""
 
+import hashlib
 import json
 import logging
 import os
@@ -18,6 +19,9 @@ OUTPUT_FILE = (
     / "data"
     / "classified"
     / "emboabas_gemini_flash_lite_first20.json"
+)
+CHECKPOINT_FILE = OUTPUT_FILE.with_name(
+    f"{OUTPUT_FILE.stem}.checkpoint.json"
 )
 MODEL = "gemini-3.5-flash-lite"
 NEWS_LIMIT = 20
@@ -233,14 +237,131 @@ def _validate_classification(result: Any) -> None:
         raise ValueError("O endereco retornado deve ser texto ou null.")
 
 
-def classify_articles(articles: list[dict[str, Any]], api_key: str) -> list[dict[str, Any]]:
-    classified = []
-    for index, article in enumerate(articles, start=1):
+def _article_key(article: dict[str, Any]) -> str:
+    identity = {
+        "modelo": MODEL,
+        "titulo": article.get("titulo", ""),
+        "descricao": article.get("descricao", ""),
+        "conteudo_completo": article.get("conteudo_completo", ""),
+        "endereco": article.get("endereco"),
+        "fonte_url": article.get("fonte_url"),
+        "fonte_data": article.get("fonte_data"),
+    }
+    encoded_identity = json.dumps(
+        identity, ensure_ascii=False, sort_keys=True
+    ).encode("utf-8")
+    return hashlib.sha256(encoded_identity).hexdigest()
+
+
+def _make_classified_article(
+    article: dict[str, Any], classification: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        "titulo": article.get("titulo", ""),
+        "fonte_url": article.get("fonte_url"),
+        "fonte_data": article.get("fonte_data"),
+        **classification,
+    }
+
+
+def _load_checkpoint() -> dict[str, dict[str, Any]]:
+    if not CHECKPOINT_FILE.exists():
+        LOGGER.info("Nenhum checkpoint encontrado; iniciando do zero.")
+        return {}
+
+    try:
+        with CHECKPOINT_FILE.open(encoding="utf-8") as source:
+            checkpoint = json.load(source)
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(
+            f"Nao foi possivel ler o checkpoint {CHECKPOINT_FILE}: {error}"
+        ) from error
+
+    if not isinstance(checkpoint, dict) or checkpoint.get("modelo") != MODEL:
+        raise ValueError(
+            f"O checkpoint {CHECKPOINT_FILE} nao corresponde ao modelo {MODEL}. "
+            "Renomeie ou remova esse arquivo para iniciar um checkpoint novo."
+        )
+    entries = checkpoint.get("classificacoes")
+    if not isinstance(entries, dict):
+        raise ValueError(
+            f"O checkpoint {CHECKPOINT_FILE} nao possui o campo "
+            "'classificacoes' esperado."
+        )
+
+    classifications = {}
+    for key, entry in entries.items():
+        if not isinstance(key, str) or not isinstance(entry, dict):
+            raise ValueError(f"Entrada invalida no checkpoint {CHECKPOINT_FILE}.")
+        classification = {
+            name: entry.get(name)
+            for name in ("tipo_perigo", "descricao", "endereco")
+        }
+        try:
+            _validate_classification(classification)
+        except ValueError as error:
+            raise ValueError(
+                f"Classificacao invalida no checkpoint {CHECKPOINT_FILE}: {error}"
+            ) from error
+        classifications[key] = classification
+    LOGGER.info(
+        "Checkpoint carregado: %d classificacoes salvas.",
+        len(classifications),
+    )
+    return classifications
+
+
+def _save_checkpoint(classifications: dict[str, dict[str, Any]]) -> None:
+    CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary_file = CHECKPOINT_FILE.with_suffix(".json.tmp")
+    checkpoint = {
+        "modelo": MODEL,
+        "classificacoes": classifications,
+    }
+    temporary_file.write_text(
+        json.dumps(checkpoint, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary_file.replace(CHECKPOINT_FILE)
+
+
+def classify_articles(
+    articles: list[dict[str, Any]],
+    api_key: str,
+    checkpoint: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    article_keys = [_article_key(article) for article in articles]
+    current_keys = set(article_keys)
+    stale_keys = checkpoint.keys() - current_keys
+    if stale_keys:
+        for key in stale_keys:
+            del checkpoint[key]
+        _save_checkpoint(checkpoint)
+        LOGGER.info(
+            "Checkpoint atualizado: descartadas %d classificacoes de noticias "
+            "que nao estao mais no lote atual.",
+            len(stale_keys),
+        )
+    pending = [
+        (index, article, key)
+        for index, (article, key) in enumerate(
+            zip(articles, article_keys), start=1
+        )
+        if key not in checkpoint
+    ]
+    skipped_count = len(articles) - len(pending)
+    LOGGER.info(
+        "Retomada: %d ja classificadas serao puladas; %d restantes.",
+        skipped_count,
+        len(pending),
+    )
+
+    for pending_index, (index, article, key) in enumerate(pending):
         content = article.get("conteudo_completo") or article.get("descricao")
         if not content:
             raise ValueError(f"A noticia {index} nao possui conteudo para classificar.")
 
-        if index > 1:
+        if pending_index > 0:
             LOGGER.info(
                 "Aguardando %.1f s antes da proxima requisicao para respeitar "
                 "o intervalo configurado.",
@@ -252,22 +373,23 @@ def classify_articles(articles: list[dict[str, Any]], api_key: str) -> list[dict
         classification = _request_classification(
             article, api_key, index, len(articles)
         )
-        classified.append(
-            {
-                "titulo": article.get("titulo", ""),
-                "fonte_url": article.get("fonte_url"),
-                "fonte_data": article.get("fonte_data"),
-                **classification,
-            }
-        )
+        checkpoint[key] = classification
+        _save_checkpoint(checkpoint)
         LOGGER.info(
-            "Noticia (%d/%d) classificada como '%s' em %.1f s.",
+            "Noticia (%d/%d) classificada como '%s' em %.1f s. "
+            "Checkpoint atualizado (%d/%d).",
             index,
             len(articles),
             classification["tipo_perigo"],
             time.monotonic() - article_started,
+            len(checkpoint),
+            len(articles),
         )
-    return classified
+
+    return [
+        _make_classified_article(article, checkpoint[key])
+        for article, key in zip(articles, article_keys)
+    ]
 
 
 def main() -> None:
@@ -301,13 +423,23 @@ def main() -> None:
         len(selected_articles),
         len(articles),
     )
-    classified = classify_articles(selected_articles, api_key)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint = _load_checkpoint()
+    try:
+        classified = classify_articles(selected_articles, api_key, checkpoint)
+    except KeyboardInterrupt:
+        LOGGER.warning(
+            "Execucao interrompida. %d classificacoes persistidas no checkpoint "
+            "%s; execute novamente para retomar.",
+            len(checkpoint),
+            CHECKPOINT_FILE,
+        )
+        return
     output = {
         "modelo": MODEL,
         "quantidade_noticias": len(classified),
         "alertas": classified,
     }
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     temporary_file = OUTPUT_FILE.with_suffix(".json.tmp")
     temporary_file.write_text(
         json.dumps(output, ensure_ascii=False, indent=2) + "\n",

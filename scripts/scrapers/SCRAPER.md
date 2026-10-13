@@ -120,6 +120,9 @@ e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 
 O script `scripts/classificators/gemini-flash.py` classifica as primeiras 20
 noticias de Emboabas em chamadas individuais ao modelo `gemini-3.5-flash-lite`.
+Consulte [`scripts/classificators/CLASSIFICATOR.md`](../classificators/CLASSIFICATOR.md)
+para requisitos, formato dos arquivos, retomada por checkpoint e detalhes dos
+logs.
 Ele exige a variavel `GEMINI_API_KEY`, lida do ambiente ou do `.env` local na
 raiz do projeto. Nunca inclua a chave no codigo nem a envie em mensagens.
 
@@ -138,9 +141,14 @@ O resultado validado e gravado em
 `alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo e
 referencia da noticia. As categorias permitidas estao definidas no script. O
 classificador usa somente a biblioteca padrao do Python; chamadas HTTP 429 e
-erros temporarios do servidor sao repetidos automaticamente. Durante a
-execucao, os logs mostram o inicio e a duracao de cada requisicao, tentativas
-de repeticao e o tempo total, sem registrar a chave ou o texto das noticias.
+erros temporarios do servidor sao repetidos automaticamente. Cada classificacao
+concluida e salva atomicamente em
+`data/classified/emboabas_gemini_flash_lite_first20.checkpoint.json`. Se a
+execucao for interrompida ou falhar, uma nova execucao reutiliza os resultados
+salvos e pula noticias cujo conteudo e URL nao mudaram. Durante a execucao, os
+logs mostram o inicio e a duracao de cada requisicao, tentativas de repeticao,
+progresso do checkpoint e o tempo total, sem registrar a chave ou o texto das
+noticias.
 
 ## Repeticao segura
 
