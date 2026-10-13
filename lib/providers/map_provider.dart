@@ -98,7 +98,8 @@ class MapProvider extends ChangeNotifier {
         'latitude': lat,
         'longitude': lng,
         'anonimo': isAnonimo,
-        'user_id': user?.id,
+        // Privacy by Design: não persiste user_id quando o relato é anônimo.
+        'user_id': isAnonimo ? null : user?.id,
         'criado_em': DateTime.now().toIso8601String(),
       });
 

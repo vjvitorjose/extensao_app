@@ -40,7 +40,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      final response = await supabase.from('danger_reports').select();
+      // Privacy by Design: seleciona apenas colunas analíticas, excluindo usuario_id.
+      final response = await supabase
+          .from('danger_reports')
+          .select('id, tipo_perigo, descricao, latitude, longitude, endereco, criado_em, nivel_risco, created_at');
       if (mounted) {
         setState(() {
           _allReports = List<Map<String, dynamic>>.from(response);

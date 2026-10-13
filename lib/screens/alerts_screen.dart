@@ -41,10 +41,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
       Position posicaoAtual = await Geolocator.getCurrentPosition();
 
-      // Busca os alertas do banco ordendados pelo mais recente
+      // Privacy by Design: seleciona apenas colunas públicas, sem usuario_id.
       final resposta = await supabase
           .from('danger_reports')
-          .select()
+          .select('id, tipo_perigo, descricao, latitude, longitude, endereco, criado_em')
           .order('criado_em', ascending: false);
 
       List<Map<String, dynamic>> alertasFiltrados = [];
