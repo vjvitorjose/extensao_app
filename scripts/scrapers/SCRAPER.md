@@ -4,7 +4,7 @@ Este diretorio (`scripts/scrapers/`) possui três scripts Python independentes p
 coletar dados reais de fontes publicas. Emboabas e G1 geram arquivos JSON; a
 SEJUSP gera arquivos CSV filtrados para Sao Joao del-Rei.
 
-Os dados coletados ficam em `scripts/data/` (pasta ignorada pelo Git, pois
+Os dados coletados ficam em `data/raw/` (pasta ignorada pelo Git, pois
 contem conteudo de terceiros).
 
 ## Pre-requisitos
@@ -43,7 +43,7 @@ externa necessaria, apenas `urllib` da stdlib.
 | 66 | Policial   | ~591 posts       |
 | 10 | Cidade     | ~729 posts       |
 
-**Saida:** `scripts/data/emboabas_danger_reports.json`
+**Saida:** `data/raw/emboabas_danger_reports.json`
 
 Cada entrada do JSON possui os campos:
 
@@ -56,8 +56,8 @@ Cada entrada do JSON possui os campos:
 | `fonte_url`         | URL do artigo original                                         |
 | `fonte_data`        | Data de publicacao (ISO 8601)                                  |
 
-> O campo `tipo_perigo` **nao e gerado pelo scraper**. A classificacao
-> ficara a cargo de uma LLM que consumira o `conteudo_completo` futuramente.
+> O campo `tipo_perigo` **nao e gerado pelo scraper**. Para classificar as
+> primeiras 20 noticias com Gemini, consulte a secao abaixo.
 
 **Execucao:**
 
@@ -76,7 +76,7 @@ repetidas ate 3 vezes respeitando o header `Retry-After`.
 
 **Categorias coletadas:** Feed de Noticias de toda a Zona da Mata e Campo das Vertentes. O script filtra automaticamente os itens que mencionam "São João del Rei" no título ou descrição.
 
-**Saida:** `scripts/data/g1_sao_joao_del_rei_reports.json`
+**Saida:** `data/raw/g1_sao_joao_del_rei_reports.json`
 
 O JSON gerado segue exatamente o mesmo padrão do `emboabas.py`.
 
@@ -104,7 +104,7 @@ O script esta configurado com 12 recursos: Crimes Violentos, Feminicidio,
 Violencia Domestica e Vitimas de Acidentes de Transito, cada um para 2024, 2025
 e 2026. Recursos que nao sejam identificados como CSV sao recusados.
 
-**Saida:** cada CSV filtrado e salvo diretamente em `scripts/data/<arquivo>.csv`;
+**Saida:** cada CSV filtrado e salvo diretamente em `data/raw/<arquivo>.csv`;
 nenhum arquivo lateral de metadados ou subpasta SEJUSP e criado. Os nomes dos
 arquivos distinguem conjunto e ano. O filtro usa o código IBGE `316250` nas
 colunas municipais próprias de cada conjunto. Cabeçalho, colunas e delimitador
@@ -116,12 +116,36 @@ por Emboabas e G1.
 **Referencias:** [conjunto Crimes Violentos](https://www.dados.mg.gov.br/dataset/crimes-violentos)
 e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 
+## Classificacao com Gemini Flash-Lite
+
+O script `scripts/classificators/gemini-flash.py` classifica as primeiras 20
+noticias de Emboabas em chamadas individuais ao modelo `gemini-2.5-flash-lite`.
+Ele exige a variavel `GEMINI_API_KEY`, lida do ambiente ou do `.env` local na
+raiz do projeto. Nunca inclua a chave no codigo nem a envie em mensagens.
+
+```env
+GEMINI_API_KEY=sua-chave-do-gemini
+```
+
+Execute da raiz do projeto:
+
+```powershell
+py scripts\classificators\gemini-flash.py
+```
+
+O resultado validado e gravado em
+`data/classificated/emboabas_gemini_flash_lite_first20.json`. Cada item em
+`alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo e
+referencia da noticia. As categorias permitidas estao definidas no script. O
+classificador usa somente a biblioteca padrao do Python; chamadas HTTP 429 e
+erros temporarios do servidor sao repetidos automaticamente.
+
 ## Repeticao segura
 
 Emboabas e G1 sobrescrevem seus arquivos JSON a cada execucao. O scraper SEJUSP
 tambem substitui somente os CSVs filtrados no mesmo caminho; os CSVs originais
 completos não são mantidos localmente. Todos os CSVs SEJUSP ficam diretamente em
-`scripts/data/` e recursos diferentes permanecem em arquivos separados.
+`data/raw/` e recursos diferentes permanecem em arquivos separados.
 
 ## Validacao sem acessar a internet
 
