@@ -57,7 +57,7 @@ Cada entrada do JSON possui os campos:
 | `fonte_data`        | Data de publicacao (ISO 8601)                                  |
 
 > O campo `tipo_perigo` **nao e gerado pelo scraper**. Para classificar as
-> primeiras 20 noticias com Gemini, consulte a secao abaixo.
+> noticias com Gemini, consulte a secao abaixo.
 
 **Execucao:**
 
@@ -118,11 +118,12 @@ e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 
 ## Classificacao com Gemini Flash-Lite
 
-O script `scripts/classificators/gemini-flash.py` classifica as primeiras 20
-noticias de Emboabas em chamadas individuais ao modelo `gemini-3.5-flash-lite`.
+O script `scripts/classificators/gemini-flash.py` classifica cinco noticias de
+Emboabas no modo piloto usando `gemini-3.1-flash-lite`. A opcao `--batch`
+processa todas as noticias da entrada com a Gemini Batch API.
 Consulte [`scripts/classificators/CLASSIFICATOR.md`](../classificators/CLASSIFICATOR.md)
-para requisitos, formato dos arquivos, retomada por checkpoint e detalhes dos
-logs.
+para requisitos, comandos, nomes dos resultados e checkpoints, retomada de jobs
+Batch e detalhes dos logs.
 Ele exige a variavel `GEMINI_API_KEY`, lida do ambiente ou do `.env` local na
 raiz do projeto. Nunca inclua a chave no codigo nem a envie em mensagens.
 
@@ -136,19 +137,16 @@ Execute da raiz do projeto:
 py scripts\classificators\gemini-flash.py
 ```
 
-O resultado validado e gravado em
-`data/classified/emboabas_gemini_flash_lite_first20.json`. Cada item em
-`alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo e
-referencia da noticia. As categorias permitidas estao definidas no script. O
-classificador usa somente a biblioteca padrao do Python; chamadas HTTP 429 e
-erros temporarios do servidor sao repetidos automaticamente. Cada classificacao
-concluida e salva atomicamente em
-`data/classified/emboabas_gemini_flash_lite_first20.checkpoint.json`. Se a
-execucao for interrompida ou falhar, uma nova execucao reutiliza os resultados
-salvos e pula noticias cujo conteudo e URL nao mudaram. Durante a execucao, os
-logs mostram o inicio e a duracao de cada requisicao, tentativas de repeticao,
-progresso do checkpoint e o tempo total, sem registrar a chave ou o texto das
-noticias.
+No modo piloto, o resultado validado e gravado em
+`data/classified/emboabas_gemini_3_1_flash_lite_pilot5.json`. No modo Batch,
+usa-se `data/classified/emboabas_gemini_3_1_flash_lite_batch_all.json`. Cada
+item em `alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`),
+titulo e referencia da noticia. As categorias permitidas estao definidas no
+script. O classificador usa somente a biblioteca padrao do Python. No piloto,
+falhas temporarias sao repetidas automaticamente; no modo Batch, os jobs e
+checkpoints sao preservados para retomada se a execucao for interrompida.
+Durante a execucao, os logs mostram tentativas, estados dos jobs e progresso
+persistido, sem registrar a chave ou o texto das noticias.
 
 ## Repeticao segura
 

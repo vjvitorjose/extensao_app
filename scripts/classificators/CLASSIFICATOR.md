@@ -29,11 +29,25 @@ Execute a partir da raiz do repositorio:
 .\.venv\Scripts\python.exe scripts\classificators\gemini-flash.py
 ```
 
-O script seleciona as 20 primeiras entradas de
-`data/raw/emboabas_danger_reports.json`. Essa quantidade e definida por
-`NEWS_LIMIT` no script. Cada noticia gera uma requisicao independente para
-`gemini-3.5-flash-lite`, usando a API `generateContent` e um esquema de resposta
-JSON restrito.
+O modo padrao e um piloto de 5 noticias, usando
+`gemini-3.1-flash-lite` pela API `generateContent`. O limite esta definido em
+`NEWS_LIMIT`. A troca de modelo e do nome dos arquivos preserva as avaliacoes
+anteriores feitas com outros modelos.
+
+Para processar todas as noticias da entrada pela Gemini Batch API:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\classificators\gemini-flash.py --batch
+```
+
+O modo Batch divide as requisicoes em jobs de ate 100 noticias e submete os
+jobs sem esperar respostas individuais. Em seguida, consulta o status a cada
+30 segundos, coleta os resultados e atualiza o checkpoint noticia por noticia.
+O processamento e assincrono e pode levar horas; a documentacao do Google
+informa prazo-alvo de ate 24 horas para jobs Batch. O modo Batch usa todas as
+noticias presentes na entrada, nao apenas as cinco do piloto. Se a entrada
+ultrapassar os limites da API, o erro e reportado; os dados de entrada nao sao
+modificados.
 
 ## Classificacao e arquivos gerados
 
@@ -57,37 +71,46 @@ Cada alerta contem `tipo_perigo`, `descricao` curta e factual e `endereco` (ou
 `null` quando nao ha local explicito). O resultado final tambem inclui titulo,
 URL e data da noticia. Somente os campos esperados e tipos validos sao aceitos.
 
-Ao concluir o lote, o resultado final e escrito atomicamente em:
+Ao concluir o piloto, o resultado final e escrito atomicamente em:
 
 ```text
-data/classified/emboabas_gemini_flash_lite_first20.json
+data/classified/emboabas_gemini_3_1_flash_lite_pilot5.json
 ```
 
-O arquivo tem `modelo`, `quantidade_noticias` e a lista `alertas`.
+Ao concluir o modo Batch, o resultado fica em
+`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.json`. Ambos os
+arquivos contem `modelo`, `quantidade_noticias` e a lista `alertas`.
 
 ## Retomada e checkpoint
 
-Depois de cada noticia classificada, o script salva o resultado em:
+No piloto, depois de cada noticia classificada, o script salva o resultado em:
 
 ```text
-data/classified/emboabas_gemini_flash_lite_first20.checkpoint.json
+data/classified/emboabas_gemini_3_1_flash_lite_pilot5.checkpoint.json
 ```
 
-O checkpoint e gravado atomicamente para reduzir o risco de corrupcao se o
-processo for encerrado durante a escrita. A identidade de cada noticia e um
-hash SHA-256 dos dados da noticia e do modelo. Ao executar novamente, o script:
+No modo Batch, as classificacoes sao salvas em
+`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.checkpoint.json`, e os
+nomes dos jobs e as noticias associadas ficam em
+`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.jobs.json`. Os arquivos
+sao gravados atomicamente. A identidade de cada noticia e um hash SHA-256 dos
+dados da noticia e do modelo. Ao executar novamente, o script:
 
 1. valida o modelo e as classificacoes existentes no checkpoint;
 2. reutiliza e pula noticias com hash correspondente;
-3. remove do checkpoint entradas que nao pertencem mais ao lote atual;
-4. classifica as noticias restantes e atualiza o checkpoint depois de cada uma;
+3. no modo Batch, reutiliza os jobs submetidos que ainda nao foram coletados,
+   sem reenviar essas noticias;
+4. atualiza o checkpoint depois de cada classificacao coletada;
 5. gera ou substitui o resultado final apenas quando todo o lote termina.
 
 Se `Ctrl+C` interromper a classificacao, os resultados ja salvos permanecem no
-checkpoint; execute o mesmo comando novamente para continuar. Se o checkpoint
-estiver invalido ou tiver sido criado com outro modelo, o script para com erro
-em vez de descartar dados silenciosamente. Para recomecar intencionalmente,
-remova somente o arquivo `.checkpoint.json` em `data/classified/`.
+checkpoint. No modo Batch, os jobs ja submetidos continuam no Google; execute
+novamente o mesmo comando `--batch` para consultar os mesmos jobs e coletar os
+resultados. Se um job terminar com falha, o script informa o estado e preserva
+manifesto e checkpoint para diagnostico. Checkpoints/manifests invalidos ou
+incompativeis com o lote atual causam erro explicito. Para recomecar
+intencionalmente um lote Batch, remova apenas o manifesto e checkpoint Batch
+correspondentes em `data/classified/`.
 
 Os diretorios `data/raw/` e `data/classified/` sao ignorados pelo Git.
 
@@ -103,9 +126,11 @@ Os logs incluem:
 - classificacao concluida e progresso persistido;
 - caminho do resultado e duracao total.
 
-O script espera 4,1 segundos entre requisicoes novas, usa timeout de 120
-segundos por tentativa e faz ate quatro tentativas no total (uma inicial e ate
-tres novas) em erros HTTP temporarios (429, 500, 502, 503 e 504) ou falhas de
-comunicacao. Respeita `Retry-After` quando enviado pela API e usa esperas
-progressivas para os demais erros temporarios. Erros permanentes e respostas
+No piloto, o script espera 4,1 segundos entre requisicoes novas, usa timeout
+de 120 segundos por tentativa e faz ate quatro tentativas no total (uma inicial
+e ate tres novas) em erros HTTP temporarios (429, 500, 502, 503 e 504) ou falhas
+de comunicacao. Respeita `Retry-After` quando enviado pela API e usa esperas
+progressivas para os demais erros temporarios. O modo Batch nao envia
+requisicoes individuais: submete os jobs, registra os nomes antes de aguardar
+e consulta seus estados a cada 30 segundos. Erros permanentes e respostas
 JSON invalidas encerram a execucao com erro explicito.
