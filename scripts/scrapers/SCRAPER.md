@@ -119,11 +119,11 @@ e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 ## Classificacao com Gemini Flash-Lite
 
 O script `scripts/classificators/gemini-flash.py` classifica cinco noticias de
-Emboabas no modo piloto usando `gemini-3.1-flash-lite`. A opcao `--batch`
-processa todas as noticias da entrada com a Gemini Batch API.
+Emboabas no modo piloto usando `gemini-3.1-flash-lite`. A opcao `--all`
+classifica todas as noticias sequencialmente pela API normal.
 Consulte [`scripts/classificators/CLASSIFICATOR.md`](../classificators/CLASSIFICATOR.md)
-para requisitos, comandos, nomes dos resultados e checkpoints, retomada de jobs
-Batch e detalhes dos logs.
+para requisitos, comandos, nomes dos resultados, checkpoints e detalhes dos
+logs.
 Ele exige a variavel `GEMINI_API_KEY`, lida do ambiente ou do `.env` local na
 raiz do projeto. Nunca inclua a chave no codigo nem a envie em mensagens.
 
@@ -138,15 +138,14 @@ py scripts\classificators\gemini-flash.py
 ```
 
 No modo piloto, o resultado validado e gravado em
-`data/classified/emboabas_gemini_3_1_flash_lite_pilot5.json`. No modo Batch,
-usa-se `data/classified/emboabas_gemini_3_1_flash_lite_batch_all.json`. Cada
-item em `alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`),
-titulo e referencia da noticia. As categorias permitidas estao definidas no
-script. O classificador usa somente a biblioteca padrao do Python. No piloto,
-falhas temporarias sao repetidas automaticamente; no modo Batch, os jobs e
-checkpoints sao preservados para retomada se a execucao for interrompida.
-Durante a execucao, os logs mostram tentativas, estados dos jobs e progresso
-persistido, sem registrar a chave ou o texto das noticias.
+`data/classified/emboabas_gemini_3_1_flash_lite_pilot5.json`; com `--all`, em
+`data/classified/emboabas_gemini_3_1_flash_lite_all.json`. Cada item em
+`alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo
+e referencia da noticia. As categorias permitidas estao definidas no script.
+O classificador usa somente a biblioteca padrao do Python. Falhas temporarias
+sao repetidas automaticamente e checkpoints sao preservados para retomada se a
+execucao for interrompida. Durante a execucao, os logs mostram tentativas e
+progresso persistido, sem registrar a chave ou o texto das noticias.
 
 ## Repeticao segura
 

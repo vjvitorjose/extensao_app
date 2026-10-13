@@ -34,20 +34,18 @@ O modo padrao e um piloto de 5 noticias, usando
 `NEWS_LIMIT`. A troca de modelo e do nome dos arquivos preserva as avaliacoes
 anteriores feitas com outros modelos.
 
-Para processar todas as noticias da entrada pela Gemini Batch API:
+Para processar todas as noticias da entrada, uma por vez:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\classificators\gemini-flash.py --batch
+.\.venv\Scripts\python.exe scripts\classificators\gemini-flash.py --all
 ```
 
-O modo Batch divide as requisicoes em jobs de ate 100 noticias e submete os
-jobs sem esperar respostas individuais. Em seguida, consulta o status a cada
-30 segundos, coleta os resultados e atualiza o checkpoint noticia por noticia.
-O processamento e assincrono e pode levar horas; a documentacao do Google
-informa prazo-alvo de ate 24 horas para jobs Batch. O modo Batch usa todas as
-noticias presentes na entrada, nao apenas as cinco do piloto. Se a entrada
-ultrapassar os limites da API, o erro e reportado; os dados de entrada nao sao
-modificados.
+Esse modo usa a API normal do Gemini e respeita o intervalo configurado entre
+requisicoes. A cota gratuita e limitada e varia conforme modelo, projeto e
+disponibilidade; o processamento das 1.311 noticias pode demorar bastante.
+Erros temporarios de limite sao repetidos automaticamente. O processo pode
+ser interrompido e retomado sem refazer as noticias ja salvas no checkpoint.
+Os dados de entrada nao sao modificados.
 
 ## Classificacao e arquivos gerados
 
@@ -77,9 +75,10 @@ Ao concluir o piloto, o resultado final e escrito atomicamente em:
 data/classified/emboabas_gemini_3_1_flash_lite_pilot5.json
 ```
 
-Ao concluir o modo Batch, o resultado fica em
-`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.json`. Ambos os
-arquivos contem `modelo`, `quantidade_noticias` e a lista `alertas`.
+Ao concluir `--all`, o resultado fica em
+`data/classified/emboabas_gemini_3_1_flash_lite_all.json`. Os arquivos do
+piloto e do lote completo contem `modelo`, `quantidade_noticias` e a lista
+`alertas`.
 
 ## Retomada e checkpoint
 
@@ -89,28 +88,22 @@ No piloto, depois de cada noticia classificada, o script salva o resultado em:
 data/classified/emboabas_gemini_3_1_flash_lite_pilot5.checkpoint.json
 ```
 
-No modo Batch, as classificacoes sao salvas em
-`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.checkpoint.json`, e os
-nomes dos jobs e as noticias associadas ficam em
-`data/classified/emboabas_gemini_3_1_flash_lite_batch_all.jobs.json`. Os arquivos
-sao gravados atomicamente. A identidade de cada noticia e um hash SHA-256 dos
-dados da noticia e do modelo. Ao executar novamente, o script:
+No modo `--all`, as classificacoes sao salvas em
+`data/classified/emboabas_gemini_3_1_flash_lite_all.checkpoint.json`. O
+checkpoint e gravado atomicamente. A identidade de cada noticia e um hash
+SHA-256 dos dados da noticia e do modelo. Ao executar novamente, o script:
 
 1. valida o modelo e as classificacoes existentes no checkpoint;
 2. reutiliza e pula noticias com hash correspondente;
-3. no modo Batch, reutiliza os jobs submetidos que ainda nao foram coletados,
-   sem reenviar essas noticias;
-4. atualiza o checkpoint depois de cada classificacao coletada;
+3. classifica sequencialmente as noticias ainda pendentes;
+4. atualiza o checkpoint depois de cada classificacao;
 5. gera ou substitui o resultado final apenas quando todo o lote termina.
 
 Se `Ctrl+C` interromper a classificacao, os resultados ja salvos permanecem no
-checkpoint. No modo Batch, os jobs ja submetidos continuam no Google; execute
-novamente o mesmo comando `--batch` para consultar os mesmos jobs e coletar os
-resultados. Se um job terminar com falha, o script informa o estado e preserva
-manifesto e checkpoint para diagnostico. Checkpoints/manifests invalidos ou
-incompativeis com o lote atual causam erro explicito. Para recomecar
-intencionalmente um lote Batch, remova apenas o manifesto e checkpoint Batch
-correspondentes em `data/classified/`.
+checkpoint; execute novamente o mesmo comando para continuar.
+Checkpoints invalidos ou incompativeis com o modelo causam erro explicito em
+vez de serem descartados silenciosamente. Para recomecar intencionalmente,
+remova somente o checkpoint correspondente em `data/classified/`.
 
 Os diretorios `data/raw/` e `data/classified/` sao ignorados pelo Git.
 
@@ -130,7 +123,5 @@ No piloto, o script espera 4,1 segundos entre requisicoes novas, usa timeout
 de 120 segundos por tentativa e faz ate quatro tentativas no total (uma inicial
 e ate tres novas) em erros HTTP temporarios (429, 500, 502, 503 e 504) ou falhas
 de comunicacao. Respeita `Retry-After` quando enviado pela API e usa esperas
-progressivas para os demais erros temporarios. O modo Batch nao envia
-requisicoes individuais: submete os jobs, registra os nomes antes de aguardar
-e consulta seus estados a cada 30 segundos. Erros permanentes e respostas
+progressivas para os demais erros temporarios. Erros permanentes e respostas
 JSON invalidas encerram a execucao com erro explicito.
