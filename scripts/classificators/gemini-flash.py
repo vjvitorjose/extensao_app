@@ -18,13 +18,14 @@ OUTPUT_FILE = (
     PROJECT_ROOT
     / "data"
     / "classified"
-    / "emboabas_gemini_flash_lite_first20.json"
+    / "emboabas_gemini_3_1_flash_lite_pilot5.json"
 )
+PILOT_OUTPUT_FILE = OUTPUT_FILE
 CHECKPOINT_FILE = OUTPUT_FILE.with_name(
     f"{OUTPUT_FILE.stem}.checkpoint.json"
 )
-MODEL = "gemini-3.5-flash-lite"
-NEWS_LIMIT = 20
+MODEL = "gemini-3.1-flash-lite"
+NEWS_LIMIT = 5
 REQUEST_INTERVAL_SECONDS = 4.1
 MAX_ATTEMPTS = 4
 ALERT_TYPES = (
