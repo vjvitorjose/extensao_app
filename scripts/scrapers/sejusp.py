@@ -3,8 +3,7 @@
 Execucao:
 	py scripts\\scrapers\\sejusp.py
 
-Cada CSV mantém somente registros de São João del-Rei e é salvo em
-scripts/data/.
+Cada CSV mantém somente registros de São João del-Rei e é salvo em data/raw/.
 """
 
 import csv
@@ -21,7 +20,7 @@ BASE_URL = "https://dados.mg.gov.br"
 API_URL = f"{BASE_URL}/api/3/action"
 ALLOWED_HOSTS = {"dados.mg.gov.br", "www.dados.mg.gov.br"}
 USER_AGENT = "vigIA-scraper/1.0 (desenvolvimento local)"
-OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
+OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
 SAO_JOAO_DEL_REI_IBGE = "316250"
 MUNICIPALITY_COLUMNS = ("cod_municipio", "municipio_cod", "codigo_municipio_fato")
 RESOURCE_URLS = (

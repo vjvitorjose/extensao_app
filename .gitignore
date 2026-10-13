@@ -49,9 +49,11 @@ app.*.map.json
 .vercel
 .env*.local
 
-# Dados gerados pelos scrapers (nao versionar conteudo de terceiros)
-scripts/data/
+# Dados brutos e classificados (nao versionar conteudo de terceiros/gerado)
+/data/raw/
+/data/classificated/
 
 # Cache Python
 scripts/populators/__pycache__/
 scripts/scrapers/__pycache__/
+scripts/classificators/__pycache__/

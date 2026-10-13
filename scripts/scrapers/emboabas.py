@@ -11,7 +11,7 @@ Execucao:
     py scripts\\scrapers\\emboabas.py
 
 Saida:
-    scripts\\data\\emboabas_danger_reports.json
+    data\\raw\\emboabas_danger_reports.json
 
 O arquivo gerado e lido por danger-report-populator.py para enriquecer as
 descricoes e enderecos dos alertas ficticios.
@@ -49,7 +49,7 @@ API_FIELDS = "id,date,link,title,content"
 
 
 # Diretorio de saida (relativo ao arquivo do scraper).
-OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
+OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
 OUTPUT_FILE = OUTPUT_DIR / "emboabas_danger_reports.json"
 
 # ---------------------------------------------------------------------------

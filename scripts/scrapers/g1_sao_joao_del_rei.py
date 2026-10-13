@@ -7,7 +7,7 @@ Execucao:
     py scripts\\scrapers\\g1_sao_joao_del_rei.py
 
 Saida:
-    scripts\\data\\g1_sao_joao_del_rei_reports.json
+    data\\raw\\g1_sao_joao_del_rei_reports.json
 """
 
 import html
@@ -26,7 +26,7 @@ RSS_URL = "https://g1.globo.com/rss/g1/mg/zona-da-mata/"
 USER_AGENT = "vigIA-scraper/1.0 (desenvolvimento local)"
 
 # Diretorio de saida
-OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
+OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "raw"
 OUTPUT_FILE = OUTPUT_DIR / "g1_sao_joao_del_rei_reports.json"
 
 
