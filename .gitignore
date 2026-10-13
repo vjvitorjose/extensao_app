@@ -51,7 +51,7 @@ app.*.map.json
 
 # Dados brutos e classificados (nao versionar conteudo de terceiros/gerado)
 /data/raw/
-/data/classificated/
+/data/classified/
 
 # Cache Python
 scripts/populators/__pycache__/

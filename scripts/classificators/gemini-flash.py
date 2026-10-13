@@ -14,7 +14,7 @@ INPUT_FILE = PROJECT_ROOT / "data" / "raw" / "emboabas_danger_reports.json"
 OUTPUT_FILE = (
     PROJECT_ROOT
     / "data"
-    / "classificated"
+    / "classified"
     / "emboabas_gemini_flash_lite_first20.json"
 )
 MODEL = "gemini-2.5-flash-lite"

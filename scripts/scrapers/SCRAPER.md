@@ -134,7 +134,7 @@ py scripts\classificators\gemini-flash.py
 ```
 
 O resultado validado e gravado em
-`data/classificated/emboabas_gemini_flash_lite_first20.json`. Cada item em
+`data/classified/emboabas_gemini_flash_lite_first20.json`. Cada item em
 `alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo e
 referencia da noticia. As categorias permitidas estao definidas no script. O
 classificador usa somente a biblioteca padrao do Python; chamadas HTTP 429 e
