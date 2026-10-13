@@ -1,6 +1,7 @@
 """Classifica noticias locais com Gemini Flash-Lite."""
 
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+LOGGER = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 INPUT_FILE = PROJECT_ROOT / "data" / "raw" / "emboabas_danger_reports.json"
 OUTPUT_FILE = (
@@ -99,7 +101,7 @@ def _make_prompt(article: dict[str, Any]) -> str:
 
 
 def _request_classification(
-    article: dict[str, Any], api_key: str
+    article: dict[str, Any], api_key: str, article_number: int, total_articles: int
 ) -> dict[str, Any]:
     payload = {
         "contents": [{"parts": [{"text": _make_prompt(article)}]}],
@@ -121,9 +123,23 @@ def _request_classification(
     )
 
     for attempt in range(MAX_ATTEMPTS):
+        attempt_started = time.monotonic()
+        LOGGER.info(
+            "Enviando requisicao para a noticia (%d/%d). Tentativa %d/%d.",
+            article_number,
+            total_articles,
+            attempt + 1,
+            MAX_ATTEMPTS,
+        )
         try:
             with urlopen(request, timeout=120) as response:
                 api_response = json.loads(response.read().decode("utf-8"))
+            LOGGER.info(
+                "Resposta recebida para a noticia (%d/%d) em %.1f s.",
+                article_number,
+                total_articles,
+                time.monotonic() - attempt_started,
+            )
             response_text = api_response["candidates"][0]["content"]["parts"][0]["text"]
             result = json.loads(response_text)
             _validate_classification(result)
@@ -131,6 +147,14 @@ def _request_classification(
         except HTTPError as error:
             error_body = error.read().decode("utf-8", errors="replace")
             if error.code not in (429, 500, 502, 503, 504) or attempt == MAX_ATTEMPTS - 1:
+                LOGGER.error(
+                    "Gemini retornou HTTP %d para a noticia (%d/%d); sem novas "
+                    "tentativas. Resposta: %s",
+                    error.code,
+                    article_number,
+                    total_articles,
+                    error_body,
+                )
                 raise RuntimeError(
                     f"Gemini retornou HTTP {error.code}: {error_body}"
                 ) from error
@@ -139,18 +163,48 @@ def _request_classification(
                 wait_seconds = max(float(retry_after), 1.0)
             except ValueError:
                 wait_seconds = 2**attempt
+            LOGGER.warning(
+                "Gemini retornou HTTP %d para a noticia (%d/%d). Nova tentativa "
+                "em %.1f s.",
+                error.code,
+                article_number,
+                total_articles,
+                wait_seconds,
+            )
             time.sleep(wait_seconds)
         except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
+            LOGGER.exception(
+                "Resposta invalida do Gemini para a noticia (%d/%d).",
+                article_number,
+                total_articles,
+            )
             raise RuntimeError(
                 "A resposta do Gemini nao contem a classificacao JSON esperada."
             ) from error
         except (TimeoutError, URLError) as error:
             if attempt == MAX_ATTEMPTS - 1:
+                LOGGER.error(
+                    "Falha de comunicacao com Gemini para a noticia (%d/%d) apos "
+                    "%d tentativas: %s",
+                    article_number,
+                    total_articles,
+                    MAX_ATTEMPTS,
+                    error,
+                )
                 raise RuntimeError(
                     f"Falha de comunicacao com Gemini apos {MAX_ATTEMPTS} tentativas: "
                     f"{error}"
                 ) from error
-            time.sleep(2**attempt)
+            wait_seconds = 2**attempt
+            LOGGER.warning(
+                "Falha de comunicacao com Gemini para a noticia (%d/%d): %s. "
+                "Nova tentativa em %d s.",
+                article_number,
+                total_articles,
+                error,
+                wait_seconds,
+            )
+            time.sleep(wait_seconds)
 
     raise RuntimeError("Numero maximo de tentativas excedido.")
 
@@ -176,8 +230,17 @@ def classify_articles(articles: list[dict[str, Any]], api_key: str) -> list[dict
             raise ValueError(f"A noticia {index} nao possui conteudo para classificar.")
 
         if index > 1:
+            LOGGER.info(
+                "Aguardando %.1f s antes da proxima requisicao para respeitar "
+                "o intervalo configurado.",
+                REQUEST_INTERVAL_SECONDS,
+            )
             time.sleep(REQUEST_INTERVAL_SECONDS)
-        classification = _request_classification(article, api_key)
+        article_started = time.monotonic()
+        LOGGER.info("Iniciando classificacao da noticia (%d/%d).", index, len(articles))
+        classification = _request_classification(
+            article, api_key, index, len(articles)
+        )
         classified.append(
             {
                 "titulo": article.get("titulo", ""),
@@ -186,11 +249,24 @@ def classify_articles(articles: list[dict[str, Any]], api_key: str) -> list[dict
                 **classification,
             }
         )
-        print(f"[{index}/{len(articles)}] Classificada: {article.get('titulo', '')}")
+        LOGGER.info(
+            "Noticia (%d/%d) classificada como '%s' em %.1f s.",
+            index,
+            len(articles),
+            classification["tipo_perigo"],
+            time.monotonic() - article_started,
+        )
     return classified
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    run_started = time.monotonic()
+    LOGGER.info("Iniciando classificacao com o modelo %s.", MODEL)
     load_dotenv_file()
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -200,12 +276,20 @@ def main() -> None:
     if not INPUT_FILE.is_file():
         raise FileNotFoundError(f"Arquivo de noticias nao encontrado: {INPUT_FILE}")
 
+    load_started = time.monotonic()
     with INPUT_FILE.open(encoding="utf-8") as source:
         articles = json.load(source)
     if not isinstance(articles, list):
         raise ValueError(f"O arquivo de entrada deve conter uma lista JSON: {INPUT_FILE}")
 
     selected_articles = articles[:NEWS_LIMIT]
+    LOGGER.info(
+        "Carregadas %d noticias em %.1f s; serao classificadas %d de %d.",
+        len(articles),
+        time.monotonic() - load_started,
+        len(selected_articles),
+        len(articles),
+    )
     classified = classify_articles(selected_articles, api_key)
     output = {
         "modelo": MODEL,
@@ -219,7 +303,12 @@ def main() -> None:
         encoding="utf-8",
     )
     temporary_file.replace(OUTPUT_FILE)
-    print(f"Resultado salvo em: {OUTPUT_FILE}")
+    LOGGER.info("Resultado salvo em %s.", OUTPUT_FILE)
+    LOGGER.info(
+        "Classificacao concluida: %d noticias em %.1f s no total.",
+        len(classified),
+        time.monotonic() - run_started,
+    )
 
 
 if __name__ == "__main__":

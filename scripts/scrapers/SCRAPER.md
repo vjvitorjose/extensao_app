@@ -138,7 +138,9 @@ O resultado validado e gravado em
 `alertas` inclui tipo de perigo, descricao curta, endereco (ou `null`), titulo e
 referencia da noticia. As categorias permitidas estao definidas no script. O
 classificador usa somente a biblioteca padrao do Python; chamadas HTTP 429 e
-erros temporarios do servidor sao repetidos automaticamente.
+erros temporarios do servidor sao repetidos automaticamente. Durante a
+execucao, os logs mostram o inicio e a duracao de cada requisicao, tentativas
+de repeticao e o tempo total, sem registrar a chave ou o texto das noticias.
 
 ## Repeticao segura
 
