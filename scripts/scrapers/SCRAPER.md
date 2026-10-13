@@ -119,7 +119,7 @@ e [documentacao da API CKAN](https://docs.ckan.org/en/2.10/api/).
 ## Classificacao com Gemini Flash-Lite
 
 O script `scripts/classificators/gemini-flash.py` classifica as primeiras 20
-noticias de Emboabas em chamadas individuais ao modelo `gemini-2.5-flash-lite`.
+noticias de Emboabas em chamadas individuais ao modelo `gemini-3.5-flash-lite`.
 Ele exige a variavel `GEMINI_API_KEY`, lida do ambiente ou do `.env` local na
 raiz do projeto. Nunca inclua a chave no codigo nem a envie em mensagens.
 

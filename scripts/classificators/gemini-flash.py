@@ -17,7 +17,7 @@ OUTPUT_FILE = (
     / "classified"
     / "emboabas_gemini_flash_lite_first20.json"
 )
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "gemini-3.5-flash-lite"
 NEWS_LIMIT = 20
 REQUEST_INTERVAL_SECONDS = 4.1
 MAX_ATTEMPTS = 4
@@ -122,7 +122,7 @@ def _request_classification(
 
     for attempt in range(MAX_ATTEMPTS):
         try:
-            with urlopen(request, timeout=60) as response:
+            with urlopen(request, timeout=120) as response:
                 api_response = json.loads(response.read().decode("utf-8"))
             response_text = api_response["candidates"][0]["content"]["parts"][0]["text"]
             result = json.loads(response_text)
@@ -144,9 +144,12 @@ def _request_classification(
             raise RuntimeError(
                 "A resposta do Gemini nao contem a classificacao JSON esperada."
             ) from error
-        except URLError as error:
+        except (TimeoutError, URLError) as error:
             if attempt == MAX_ATTEMPTS - 1:
-                raise RuntimeError(f"Falha de comunicacao com Gemini: {error}") from error
+                raise RuntimeError(
+                    f"Falha de comunicacao com Gemini apos {MAX_ATTEMPTS} tentativas: "
+                    f"{error}"
+                ) from error
             time.sleep(2**attempt)
 
     raise RuntimeError("Numero maximo de tentativas excedido.")
