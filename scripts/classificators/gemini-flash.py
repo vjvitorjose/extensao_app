@@ -148,11 +148,14 @@ def _request_classification(
             error_body = error.read().decode("utf-8", errors="replace")
             if error.code not in (429, 500, 502, 503, 504) or attempt == MAX_ATTEMPTS - 1:
                 LOGGER.error(
-                    "Gemini retornou HTTP %d para a noticia (%d/%d); sem novas "
-                    "tentativas. Resposta: %s",
+                    "Gemini retornou HTTP %d para a noticia (%d/%d) apos %.1f s "
+                    "na tentativa %d/%d; sem novas tentativas. Resposta: %s",
                     error.code,
                     article_number,
                     total_articles,
+                    time.monotonic() - attempt_started,
+                    attempt + 1,
+                    MAX_ATTEMPTS,
                     error_body,
                 )
                 raise RuntimeError(
@@ -164,11 +167,14 @@ def _request_classification(
             except ValueError:
                 wait_seconds = 2**attempt
             LOGGER.warning(
-                "Gemini retornou HTTP %d para a noticia (%d/%d). Nova tentativa "
-                "em %.1f s.",
+                "Gemini retornou HTTP %d para a noticia (%d/%d) apos %.1f s "
+                "na tentativa %d/%d. Nova tentativa em %.1f s.",
                 error.code,
                 article_number,
                 total_articles,
+                time.monotonic() - attempt_started,
+                attempt + 1,
+                MAX_ATTEMPTS,
                 wait_seconds,
             )
             time.sleep(wait_seconds)
@@ -185,9 +191,11 @@ def _request_classification(
             if attempt == MAX_ATTEMPTS - 1:
                 LOGGER.error(
                     "Falha de comunicacao com Gemini para a noticia (%d/%d) apos "
-                    "%d tentativas: %s",
+                    "%.1f s na tentativa %d/%d: %s",
                     article_number,
                     total_articles,
+                    time.monotonic() - attempt_started,
+                    attempt + 1,
                     MAX_ATTEMPTS,
                     error,
                 )
@@ -197,10 +205,13 @@ def _request_classification(
                 ) from error
             wait_seconds = 2**attempt
             LOGGER.warning(
-                "Falha de comunicacao com Gemini para a noticia (%d/%d): %s. "
-                "Nova tentativa em %d s.",
+                "Falha de comunicacao com Gemini para a noticia (%d/%d) apos "
+                "%.1f s na tentativa %d/%d: %s. Nova tentativa em %d s.",
                 article_number,
                 total_articles,
+                time.monotonic() - attempt_started,
+                attempt + 1,
+                MAX_ATTEMPTS,
                 error,
                 wait_seconds,
             )
