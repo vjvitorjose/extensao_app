@@ -1,0 +1,31 @@
+{
+  "total": 26,
+  "por_classe": {
+    "acidente_transito": 2,
+    "assalto": 2,
+    "assedio": 2,
+    "emergencia_medica": 2,
+    "furto": 2,
+    "iluminacao_ruim": 2,
+    "incendio_fumaca": 2,
+    "local_suspeito": 2,
+    "nenhum": 2,
+    "perseguicao": 2,
+    "presenca_arma": 2,
+    "via_bloqueada": 2,
+    "violencia_fisica": 2
+  },
+  "reais": 20,
+  "sinteticos": 6,
+  "fora_da_area": 2,
+  "alertaveis": 22,
+  "universo_posts": 2001,
+  "universo_unico": 1765,
+  "universo_fora_do_teste": 1645,
+  "arquivo": "few_shot_examples.jsonl",
+  "validacoes": [
+    "2 exemplos por classe da taxonomia",
+    "relevante = tipo_perigo != nenhum e fora_da_area == false",
+    "nenhum título/conteúdo do conjunto de teste"
+  ]
+}

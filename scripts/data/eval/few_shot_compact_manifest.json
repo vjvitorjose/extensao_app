@@ -1,0 +1,26 @@
+{
+  "source": "C:\\Users\\davig\\Documents\\GitHub\\extensao_app\\scripts\\data\\eval\\few_shot_examples.jsonl",
+  "out": "C:\\Users\\davig\\Documents\\GitHub\\extensao_app\\scripts\\data\\eval\\few_shot_examples_compact.jsonl",
+  "max_chars": 600,
+  "examples": 26,
+  "truncated": 14,
+  "source_sha256": "9370d9c8d684e4f45245e419ba851a3278a6f4c36b7554f5002742eb6c37bf3b",
+  "out_sha256": "a010117521b849830abf82c066fd4a54528468d7ec9b28d05362750f9f1bfa93",
+  "source_chars": 24933,
+  "out_chars": 15048,
+  "by_type": {
+    "acidente_transito": 2,
+    "assalto": 2,
+    "assedio": 2,
+    "emergencia_medica": 2,
+    "furto": 2,
+    "iluminacao_ruim": 2,
+    "incendio_fumaca": 2,
+    "local_suspeito": 2,
+    "nenhum": 2,
+    "perseguicao": 2,
+    "presenca_arma": 2,
+    "via_bloqueada": 2,
+    "violencia_fisica": 2
+  }
+}

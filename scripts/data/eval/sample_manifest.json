@@ -1,0 +1,487 @@
+{
+  "total": 120,
+  "seed": 20261102,
+  "universo_posts_unicos": 1765,
+  "estratos": [
+    {
+      "id": "sjd-001",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-002",
+      "estrato": "freq_violencia_fisica"
+    },
+    {
+      "id": "sjd-003",
+      "estrato": "rare_assedio"
+    },
+    {
+      "id": "sjd-004",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-005",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-006",
+      "estrato": "freq_presenca_arma"
+    },
+    {
+      "id": "sjd-007",
+      "estrato": "freq_presenca_arma"
+    },
+    {
+      "id": "sjd-008",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-009",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-010",
+      "estrato": "freq_acidente_transito"
+    },
+    {
+      "id": "sjd-011",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-012",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-013",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-014",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-015",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-016",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-017",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-018",
+      "estrato": "freq_acidente_transito"
+    },
+    {
+      "id": "sjd-019",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-020",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-021",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-022",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-023",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-024",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-025",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-026",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-027",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-028",
+      "estrato": "rare_perseguicao"
+    },
+    {
+      "id": "sjd-029",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-030",
+      "estrato": "freq_furto"
+    },
+    {
+      "id": "sjd-031",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-032",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-033",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-034",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-035",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-036",
+      "estrato": "freq_incendio"
+    },
+    {
+      "id": "sjd-037",
+      "estrato": "freq_presenca_arma"
+    },
+    {
+      "id": "sjd-038",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-039",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-040",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-041",
+      "estrato": "freq_furto"
+    },
+    {
+      "id": "sjd-042",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-043",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-044",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-045",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-046",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-047",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-048",
+      "estrato": "freq_presenca_arma"
+    },
+    {
+      "id": "sjd-049",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-050",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-051",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-052",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-053",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-054",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-055",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-056",
+      "estrato": "freq_furto"
+    },
+    {
+      "id": "sjd-057",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-058",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-059",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-060",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-061",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-062",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-063",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-064",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-065",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-066",
+      "estrato": "freq_violencia_fisica"
+    },
+    {
+      "id": "sjd-067",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-068",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-069",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-070",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-071",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-072",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-073",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-074",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-075",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-076",
+      "estrato": "freq_incendio"
+    },
+    {
+      "id": "sjd-077",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-078",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-079",
+      "estrato": "freq_violencia_fisica"
+    },
+    {
+      "id": "sjd-080",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-081",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-082",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-083",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-084",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-085",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-086",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-087",
+      "estrato": "rare_assedio"
+    },
+    {
+      "id": "sjd-088",
+      "estrato": "freq_furto"
+    },
+    {
+      "id": "sjd-089",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-090",
+      "estrato": "rare_perseguicao"
+    },
+    {
+      "id": "sjd-091",
+      "estrato": "freq_incendio"
+    },
+    {
+      "id": "sjd-092",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-093",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-094",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-095",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-096",
+      "estrato": "rare_emergencia_medica"
+    },
+    {
+      "id": "sjd-097",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-098",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-099",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-100",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-101",
+      "estrato": "freq_acidente_transito"
+    },
+    {
+      "id": "sjd-102",
+      "estrato": "freq_incendio"
+    },
+    {
+      "id": "sjd-103",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-104",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-105",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-106",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-107",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-108",
+      "estrato": "rare_assedio"
+    },
+    {
+      "id": "sjd-109",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-110",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-111",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-112",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-113",
+      "estrato": "freq_violencia_fisica"
+    },
+    {
+      "id": "sjd-114",
+      "estrato": "rare_assalto"
+    },
+    {
+      "id": "sjd-115",
+      "estrato": "fora_pool_broad"
+    },
+    {
+      "id": "sjd-116",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-117",
+      "estrato": "rare_perseguicao"
+    },
+    {
+      "id": "sjd-118",
+      "estrato": "fora_pool_aleatorio"
+    },
+    {
+      "id": "sjd-119",
+      "estrato": "ai_nenhum"
+    },
+    {
+      "id": "sjd-120",
+      "estrato": "ai_nenhum"
+    }
+  ]
+}
