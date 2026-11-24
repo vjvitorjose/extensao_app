@@ -1,0 +1,13 @@
+# Dependencias do scraper do Facebook.
+#
+# Diferente dos demais scrapers deste diretorio, que sao stdlib puro, o scraper
+# do Facebook precisa de duas bibliotecas: Playwright para rodar o Chromium e
+# google-genai para a classificacao por LLM.
+#
+# Instale em um ambiente virtual, sem mexer no Python global:
+#   python -m venv scripts\.venv
+#   scripts\.venv\Scripts\python -m pip install -r scripts\scrapers\requirements.txt
+#   scripts\.venv\Scripts\python -m playwright install chromium
+
+playwright>=1.49
+google-genai>=1.0

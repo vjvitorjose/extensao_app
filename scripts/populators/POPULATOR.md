@@ -38,8 +38,12 @@ py scripts\populators\danger-report-populator.py
 ```
 
 O primeiro script cria os usuarios que os dois scripts seguintes usam como
-referencia. Para enriquecer os alertas com dados reais antes do passo 3,
-execute primeiro os scrapers (veja `scripts/scrapers/SCRAPER.md`).
+referencia.
+
+Os populators **nao consomem a saida dos scrapers**. O `danger-report-populator.py`
+gera os alertas do zero, com endereco literal `"Sao Joao del-Rei, MG (dado ficticio)"`
+e coordenadas sorteadas em torno do centro urbano. Rodar os scrapers antes nao
+enriquece nada: ainda nao existe o passo que leve o JSON coletado para o banco.
 
 ## 1. Usuarios artificiais
 

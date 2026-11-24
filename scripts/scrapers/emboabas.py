@@ -13,8 +13,8 @@ Execucao:
 Saida:
     scripts\\data\\emboabas_danger_reports.json
 
-O arquivo gerado e lido por danger-report-populator.py para enriquecer as
-descricoes e enderecos dos alertas ficticios.
+Este arquivo ainda NAO e lido por nenhum script: nao existe etapa de ingestao
+levando o JSON para o Supabase. Ver scripts/populators/POPULATOR.md.
 """
 
 import html
