@@ -1,0 +1,32 @@
+{
+  "model": "opencode/big-pickle",
+  "mode": "few_shot",
+  "run_name": "opencode_big-pickle_few_shot",
+  "out": "scripts\\data\\eval\\runs\\big_pickle_few_shot.jsonl",
+  "selected": 120,
+  "pending_at_start": 120,
+  "already_done": 0,
+  "few_shot_examples": 26,
+  "few_shot_sha256": "f1b79ccdd32788d9948edd2e4451cf56b420bef952318d93f6d66f52f62d4376",
+  "prompt_version": "2026-11-03.fewshot.v1",
+  "prompt_common_sha256": "042154987376b89a1ea310ab57875b65b1ea4eb1e99c5a3f3a8c2d31f0ee6b66",
+  "started_at": "2026-11-03T03:16:57.279841+00:00",
+  "args": {
+    "model": "opencode/big-pickle",
+    "mode": "few_shot",
+    "limit": null,
+    "ids": null,
+    "out": "scripts/data/eval/runs/big_pickle_few_shot.jsonl",
+    "run_name": null,
+    "concurrency": 3,
+    "delay": 0.3,
+    "attempts": 6,
+    "timeout": 300.0,
+    "backoff_base": 2.0,
+    "backoff_max": 30.0,
+    "shuffle": false,
+    "seed": 20261102,
+    "retry_parse_errors": false,
+    "dry_run": false
+  }
+}

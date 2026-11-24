@@ -1,0 +1,15 @@
+{
+  "model": "opencode/big-pickle",
+  "mode": "few_shot",
+  "status": "concluido",
+  "selected": 2,
+  "records": 2,
+  "ok": 1,
+  "errors": 1,
+  "parse_errors": 0,
+  "total_latency_s": 13.772,
+  "mean_latency_s": 6.886,
+  "total_cost_usd": 0,
+  "started_at": "2026-11-03T03:09:50.107862+00:00",
+  "finished_at": "2026-11-03T03:10:21.429898+00:00"
+}

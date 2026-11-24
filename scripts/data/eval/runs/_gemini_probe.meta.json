@@ -1,0 +1,32 @@
+{
+  "model": "gemini/gemini-3.8-flash",
+  "mode": "few_shot",
+  "run_name": "gemini_gemini-3.8-flash_few_shot",
+  "out": "scripts\\data\\eval\\runs\\_gemini_probe.jsonl",
+  "selected": 3,
+  "pending_at_start": 3,
+  "already_done": 0,
+  "few_shot_examples": 26,
+  "few_shot_sha256": "f1b79ccdd32788d9948edd2e4451cf56b420bef952318d93f6d66f52f62d4376",
+  "prompt_version": "2026-11-03.fewshot.v1",
+  "prompt_common_sha256": "042154987376b89a1ea310ab57875b65b1ea4eb1e99c5a3f3a8c2d31f0ee6b66",
+  "started_at": "2026-11-03T03:16:58.919879+00:00",
+  "args": {
+    "model": "gemini/gemini-3.8-flash",
+    "mode": "few_shot",
+    "limit": null,
+    "ids": "sjd-001,sjd-002,sjd-003",
+    "out": "scripts/data/eval/runs/_gemini_probe.jsonl",
+    "run_name": null,
+    "concurrency": 1,
+    "delay": 1.0,
+    "attempts": 3,
+    "timeout": 300,
+    "backoff_base": 10.0,
+    "backoff_max": 30.0,
+    "shuffle": false,
+    "seed": 20261102,
+    "retry_parse_errors": false,
+    "dry_run": false
+  }
+}

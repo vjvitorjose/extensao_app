@@ -1,0 +1,15 @@
+{
+  "model": "gemini/gemini-3.1-flash-lite",
+  "mode": "few_shot",
+  "status": "concluido",
+  "selected": 5,
+  "records": 5,
+  "ok": 5,
+  "errors": 0,
+  "parse_errors": 0,
+  "total_latency_s": 9.931,
+  "mean_latency_s": 1.986,
+  "total_cost_usd": 0,
+  "started_at": "2026-11-03T03:38:50.546434+00:00",
+  "finished_at": "2026-11-03T03:39:00.821924+00:00"
+}

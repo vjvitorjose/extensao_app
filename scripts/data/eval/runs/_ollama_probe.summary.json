@@ -1,0 +1,15 @@
+{
+  "model": "ollama/qwen3:8b",
+  "mode": "few_shot",
+  "status": "concluido",
+  "selected": 2,
+  "records": 2,
+  "ok": 2,
+  "errors": 0,
+  "parse_errors": 0,
+  "total_latency_s": 171.101,
+  "mean_latency_s": 85.55,
+  "total_cost_usd": 0,
+  "started_at": "2026-11-03T03:33:08.222675+00:00",
+  "finished_at": "2026-11-03T03:35:59.356146+00:00"
+}
