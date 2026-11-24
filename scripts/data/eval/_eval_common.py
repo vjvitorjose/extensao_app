@@ -89,18 +89,22 @@ TYPE_ALIASES = {
 
 
 def load_env_file(path: Path | None = None) -> None:
-    """Carrega um .env simples sem sobrescrever variáveis já definidas."""
+    """Carrega .env do projeto/scripts sem sobrescrever variáveis existentes."""
     import os
 
-    path = path or (PROJECT_ROOT / "scripts" / ".env")
-    if not path.exists():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+    paths = [path] if path is not None else [
+        PROJECT_ROOT / "scripts" / ".env",
+        PROJECT_ROOT / ".env",
+    ]
+    for env_path in paths:
+        if not env_path.exists():
             continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
 def normalize_text(text: Any) -> str:

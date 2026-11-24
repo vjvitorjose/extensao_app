@@ -54,6 +54,8 @@ app.*.map.json
 scripts/data/*
 !scripts/data/eval/
 scripts/data/eval/*
+!scripts/data/eval/multilabel_study.py
+!scripts/data/eval/few_shot_multilabel.jsonl
 # Excecao: respostas brutas das LLMs na avaliacao (runs principais e metadados).
 !scripts/data/eval/runs/
 scripts/data/eval/runs/*

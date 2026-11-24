@@ -93,3 +93,125 @@ python scripts/data/eval/evaluate.py `
 ```
 
 O CSV do gabarito serve para revisão humana; o JSONL é a fonte de verdade.
+
+## Estudo multi-fonte e multi-rótulo
+
+`multilabel_study.py` prepara um estudo separado da avaliação histórica acima.
+Se você já tem a amostra aleatória de 90 notícias, importe-a diretamente: o
+pipeline não coleta, filtra nem reamostra esses itens. Aceita JSON (lista),
+JSONL ou CSV com título e conteúdo.
+
+```powershell
+# Importa a lista existente de 90 notícias e gera fichas cegas para os três avaliadores
+python scripts/data/eval/multilabel_study.py import-sample --input caminho\para\amostra.jsonl
+
+# Alternativa apenas se ainda não houver uma amostra pronta:
+# coleta os arquivos locais, filtra regex e sorteia itens entre fontes
+python scripts/data/eval/multilabel_study.py prepare --count 30 --seed 20261124
+
+# Para executar sobre toda a base local dos scrapers (sem amostragem):
+python scripts/data/eval/multilabel_study.py prepare-full
+
+# Cada anotador preenche seu próprio CSV sem consultar os demais nem os modelos.
+# tipos_perigo e indicadores são códigos separados por ponto e vírgula.
+# Para nenhuma classe de perigo, preencha tipos_perigo com "nenhum".
+# fora_da_area e relevante devem ser true/false.
+
+# Depois de preencher os três CSVs, cria a maioria provisória e relatório de divergências
+python scripts/data/eval/multilabel_study.py consensus `
+  --annotations scripts/data/eval/study_multilabel/annotator_1.csv `
+  --annotations scripts/data/eval/study_multilabel/annotator_2.csv `
+  --annotations scripts/data/eval/study_multilabel/annotator_3.csv
+
+# Executar nos 90 itens anotados ou, para a base completa, passar full_corpus.jsonl.
+# Os modelos recebem o mesmo prompt e os mesmos exemplos few-shot sintéticos.
+python scripts/data/eval/multilabel_study.py run
+python scripts/data/eval/multilabel_study.py run `
+  --input scripts/data/eval/study_multilabel/full_corpus.jsonl `
+  --out-dir scripts/data/eval/study_multilabel/full_corpus_runs
+
+# Calcular métricas após as anotações humanas e execuções dos modelos
+python scripts/data/eval/multilabel_study.py evaluate `
+  scripts/data/eval/study_multilabel/runs/deepseek_deepseek-flash.jsonl `
+  scripts/data/eval/study_multilabel/runs/gemini_gemini-3.1-flash-lite.jsonl `
+  scripts/data/eval/study_multilabel/runs/ollama_qwen3_8b.jsonl
+```
+
+O prompt usa **few-shot** com 21 exemplos sintéticos versionados em
+`few_shot_multilabel.jsonl`: há um exemplo para cada uma das 19 classes
+(incluindo `nenhum`), um exemplo adicional de evento fora da área e um exemplo
+com múltiplos rótulos. Eles não foram retirados da amostra nem do gabarito,
+evitando vazamento direto dos itens avaliados. Os três modelos recebem
+exatamente os mesmos exemplos. Para uma comparação zero-shot opcional, passe
+`--few-shot ""` ao comando `run`.
+
+O carregador lê `scripts/.env` e também `.env` na raiz do repositório, sem
+imprimir os valores das variáveis. Se a mesma variável estiver nos dois, o
+valor em `scripts/.env` tem precedência. O runner pausa um modelo quando a
+cota diária acaba, ocorre erro não repetível ou aparecem três erros de
+provedor seguidos; as notícias restantes permanecem pendentes para retomar
+depois.
+
+A saída pede no máximo três rótulos, categoria principal, indicadores
+de evidência, relevância geográfica e confiança. O relatório calcula exact
+match, Hamming loss, F1 micro/macro e por classe, métricas binárias de
+relevância/área, validade do JSON, latência e custo. Rótulos sem exemplos no
+ground truth aparecem com suporte zero; não entram no macro-F1 de classes
+suportadas. O relatório de consenso também mostra concordância exata entre
+conjuntos de rótulos e Cohen kappa por rótulo, além dos itens/campos divergentes.
+
+### Protocolo humano e taxonomia
+
+Os três anotadores recebem as mesmas notícias sem pré-rótulos. Devem preencher
+`tipos_perigo` com até três códigos, ordenados da maior gravidade para a menor,
+e marcar `nenhum` sozinho quando não houver evento da taxonomia. A maioria é
+calculada por rótulo; divergências são destacadas para revisão. `relevante` só
+deve ser true quando houver um evento da taxonomia dentro da área de cobertura;
+no consenso final esse campo é derivado dos rótulos e da votação de área, para
+evitar combinações contraditórias.
+Uma ocorrência fora da área mantém seus rótulos, mas recebe `fora_da_area=true`
+e `relevante=false`.
+
+| Código | Critério operacional resumido |
+|---|---|
+| `latrocinio` | Roubo seguido de morte; substitui os rótulos componentes. |
+| `homicidio` | Morte violenta intencional, exceto latrocínio. |
+| `estupro` | Estupro ou violência sexual com conjunção carnal/ato libidinoso. |
+| `extorsao` | Exigência de vantagem mediante ameaça ou violência. |
+| `roubo_arma` | Roubo consumado com arma de fogo; substitui assalto e presença de arma. |
+| `trafico` | Comércio ou distribuição de drogas descrito como tráfico. |
+| `assalto` | Roubo consumado mediante ameaça ou força, exceto compostos acima. |
+| `incendio` | Incêndio ou fumaça ativo/recente. |
+| `presenca_arma` | Disparo, pessoa baleada, arma de fogo portada/apreendida ou ameaça com arma, sem roubo armado. |
+| `furto` | Subtração sem ameaça ou violência contra a pessoa. |
+| `assedio` | Assédio ou importunação, inclusive sexual, sem elementos para estupro. |
+| `violencia_fisica` | Agressão, briga ou violência doméstica, exceto morte/estupro já classificados. |
+| `perseguicao` | Pessoa seguida/perseguida ou perseguição policial com risco viário. |
+| `iluminacao_ruim` | Iluminação pública insuficiente, relatada como risco. |
+| `local_suspeito` | Local identificável com atividade suspeita e risco de segurança ou sanitário. |
+| `acidente_transito` | Colisão, batida, atropelamento, capotamento ou acidente com veículo. |
+| `via_bloqueada` | Via bloqueada/alagada por incidente não planejado, sem acidente de trânsito. |
+| `emergencia_medica` | Emergência médica, mal súbito, afogamento, acidente com ferido, ataque animal, resgate ou morte acidental. |
+| `nenhum` | Nenhum evento de perigo desta taxonomia. |
+
+Indicadores são códigos de evidência, não rótulos: `morte`, `arma`,
+`ato_sexual`, `vantagem`. Use somente o que estiver apoiado pelo texto. Para
+casos compostos, siga as precedências acima e as instruções mais detalhadas do
+prompt versionado no script.
+
+`import-sample` exige exatamente 90 registros por padrão; use `--count` se a
+amostra tiver outro tamanho. Preserva IDs existentes ou cria IDs estáveis,
+recusa IDs repetidos e falha sem alterar a seleção se a contagem diferir. As
+três fichas contêm a mesma amostra, para cada avaliador classificar cada item
+independentemente.
+
+As fichas, notícias, respostas brutas e relatórios ficam em
+`scripts/data/eval/study_multilabel/`, ignorado pelo Git por conter conteúdo de
+terceiros. O arquivo `manifest.json` registra a origem e contagem por fonte.
+Revise o relatório de divergências antes de considerar a maioria dos três
+anotadores como ground truth definitivo. Trinta itens e uma amostra balanceada
+entre fontes são exploratórios: não estimam prevalência nem desempenho em
+produção, e classes raras podem não aparecer.
+
+Os runs históricos nesta pasta continuam usando a taxonomia anterior de rótulo
+único; não os misture com os resultados do estudo multi-rótulo.
