@@ -19,7 +19,14 @@ from pathlib import Path
 from typing import Any
 
 from _eval_common import parse_json_output, read_jsonl
-from run_eval import DEFAULT_TIMEOUT, ProviderError, QuotaExceeded, load_env_file, make_provider
+from run_eval import (
+    DEFAULT_TIMEOUT,
+    ProviderError,
+    QuotaExceeded,
+    RateLimiter,
+    load_env_file,
+    make_provider,
+)
 
 BASE = Path(__file__).resolve().parent
 ROOT = BASE.parents[2]
@@ -27,8 +34,8 @@ DEFAULT_OUT = BASE / "study_multilabel"
 DEFAULT_FEW_SHOT = BASE / "few_shot_multilabel.jsonl"
 DEFAULT_SOURCES = {
     "facebook": ROOT / "scripts" / "data" / "facebook_sjddoficial_posts.json",
-    "emboabas": ROOT / "data" / "raw" / "emboabas_danger_reports.json",
-    "g1": ROOT / "data" / "raw" / "g1_sao_joao_del_rei_reports.json",
+    "emboabas": ROOT / "scripts" / "data" / "emboabas_danger_reports.json",
+    "g1": ROOT / "scripts" / "data" / "g1_sao_joao_del_rei_reports.json",
 }
 DEFAULT_STUDY_MODELS = [
     "deepseek/deepseek-flash",
@@ -559,6 +566,33 @@ def _validate_prediction(obj: dict[str, Any]) -> tuple[dict[str, Any] | None, st
     return obj, None
 
 
+def _error_record(
+    item: dict[str, Any],
+    model: str,
+    prompt_sha256: str,
+    few_shot_count: int,
+    attempts: int,
+    started: float,
+    error: Exception,
+) -> dict[str, Any]:
+    return {
+        "id": item["id"],
+        "model": model,
+        "prompt_version": PROMPT_VERSION,
+        "prompt_sha256": prompt_sha256,
+        "few_shot_examples": few_shot_count,
+        "attempts": attempts,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "latency_s": round(time.perf_counter() - started, 3),
+        "cost_usd": None,
+        "usage": {},
+        "raw_response": None,
+        "parsed": None,
+        "validation_error": None,
+        "error": str(error),
+    }
+
+
 def run_models(args: argparse.Namespace) -> int:
     load_env_file()
     data_path = Path(args.input)
@@ -570,8 +604,13 @@ def run_models(args: argparse.Namespace) -> int:
         raise ValueError(f"IDs dos exemplos few-shot coincidem com a avaliação: {sorted(overlap)}")
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    rate_limiter = RateLimiter(args.delay)
     for model in args.models:
-        provider = make_provider(model, timeout=args.timeout)
+        try:
+            provider = make_provider(model, timeout=args.timeout)
+        except ProviderError as exc:
+            print(f"[{model}] ignorado: {exc}", file=sys.stderr)
+            continue
         run_path = out_dir / f"{re.sub(r'[^A-Za-z0-9_.-]+', '_', model)}.jsonl"
         latest = {row.get("id"): row for row in read_jsonl(run_path)} if run_path.exists() else {}
         stop_model = False
@@ -590,64 +629,70 @@ def run_models(args: argparse.Namespace) -> int:
                         continue
                     started = time.perf_counter()
                     stop_after_record = False
-                    try:
-                        result = provider.complete(prompt)
-                        consecutive_provider_errors = 0
-                        parsed, parse_error = parse_json_output(result.text)
-                        normalized, validation_error = _validate_prediction(parsed) if parsed else (None, parse_error or "resposta não é JSON")
-                        record = {
-                            "id": item["id"],
-                            "model": model,
-                            "prompt_version": PROMPT_VERSION,
-                            "prompt_sha256": prompt_sha256,
-                            "few_shot_examples": len(few_shot),
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "latency_s": round(result.latency_s, 3),
-                            "cost_usd": result.cost_usd,
-                            "usage": result.usage,
-                            "raw_response": result.text,
-                            "parsed": normalized,
-                            "validation_error": validation_error,
-                            "error": None,
-                        }
-                    except QuotaExceeded as exc:
-                        consecutive_provider_errors += 1
-                        stop_after_record = True
-                        record = {
-                            "id": item["id"],
-                            "model": model,
-                            "prompt_version": PROMPT_VERSION,
-                            "prompt_sha256": prompt_sha256,
-                            "few_shot_examples": len(few_shot),
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "latency_s": round(time.perf_counter() - started, 3),
-                            "cost_usd": None,
-                            "usage": {},
-                            "raw_response": None,
-                            "parsed": None,
-                            "validation_error": None,
-                            "error": str(exc),
-                        }
-                    except ProviderError as exc:
-                        consecutive_provider_errors += 1
-                        stop_after_record = (
-                            not exc.retryable or consecutive_provider_errors >= 3
-                        )
-                        record = {
-                            "id": item["id"],
-                            "model": model,
-                            "prompt_version": PROMPT_VERSION,
-                            "prompt_sha256": prompt_sha256,
-                            "few_shot_examples": len(few_shot),
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "latency_s": round(time.perf_counter() - started, 3),
-                            "cost_usd": None,
-                            "usage": {},
-                            "raw_response": None,
-                            "parsed": None,
-                            "validation_error": None,
-                            "error": str(exc),
-                        }
+                    attempts = 0
+                    while True:
+                        attempts += 1
+                        try:
+                            rate_limiter.wait()
+                            result = provider.complete(prompt)
+                            consecutive_provider_errors = 0
+                            parsed, parse_error = parse_json_output(result.text)
+                            normalized, validation_error = (
+                                _validate_prediction(parsed)
+                                if parsed
+                                else (None, parse_error or "resposta não é JSON")
+                            )
+                            record = {
+                                "id": item["id"],
+                                "model": model,
+                                "prompt_version": PROMPT_VERSION,
+                                "prompt_sha256": prompt_sha256,
+                                "few_shot_examples": len(few_shot),
+                                "attempts": attempts,
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "latency_s": round(result.latency_s, 3),
+                                "cost_usd": result.cost_usd,
+                                "usage": result.usage,
+                                "raw_response": result.text,
+                                # Mantém os rótulos mesmo quando o schema falha (ex.: ordem
+                                # de gravidade ou indicador extra): a métrica de validade
+                                # continua separada da qualidade da classificação.
+                                "parsed": normalized if normalized is not None else parsed,
+                                "validation_error": validation_error,
+                                "error": None,
+                            }
+                            break
+                        except QuotaExceeded as exc:
+                            consecutive_provider_errors += 1
+                            stop_after_record = True
+                            record = _error_record(
+                                item, model, prompt_sha256, len(few_shot),
+                                attempts, started, exc,
+                            )
+                            break
+                        except ProviderError as exc:
+                            if exc.retryable and attempts < args.attempts:
+                                delay = min(
+                                    args.backoff_max,
+                                    args.backoff_base * (2 ** (attempts - 1)),
+                                )
+                                delay *= 1 + random.random() * 0.3
+                                print(
+                                    f"  retry {item['id']} tentativa {attempts}/{args.attempts} "
+                                    f"em {delay:.1f}s: {exc}",
+                                    file=sys.stderr,
+                                )
+                                time.sleep(delay)
+                                continue
+                            consecutive_provider_errors += 1
+                            stop_after_record = (
+                                not exc.retryable or consecutive_provider_errors >= 3
+                            )
+                            record = _error_record(
+                                item, model, prompt_sha256, len(few_shot),
+                                attempts, started, exc,
+                            )
+                            break
                     handle.write(json.dumps(record, ensure_ascii=False) + "\n")
                     handle.flush()
                     if stop_after_record:
@@ -660,8 +705,6 @@ def run_models(args: argparse.Namespace) -> int:
                         break
                     if args.progress_interval and index % args.progress_interval == 0:
                         print(f"[{model}] {index}/{len(items)} processados")
-                    if args.delay > 0:
-                        time.sleep(args.delay)
         finally:
             provider.close()
         print(f"{model}: saída {run_path}" + (" (execução parcial)" if stop_model else ""))
@@ -950,7 +993,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--model", dest="models", action="append", help="pode repetir; padrão: DeepSeek, Gemini e Ollama")
     run.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
-    run.add_argument("--delay", type=float, default=0.0)
+    run.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help="intervalo mínimo entre requisições, em segundos (rate limit global)",
+    )
+    run.add_argument("--attempts", type=int, default=4, help="tentativas por item em erros repetíveis")
+    run.add_argument("--backoff-base", type=float, default=2.0)
+    run.add_argument("--backoff-max", type=float, default=30.0)
     run.add_argument("--progress-interval", type=int, default=100)
     run.set_defaults(func=run_models)
 
