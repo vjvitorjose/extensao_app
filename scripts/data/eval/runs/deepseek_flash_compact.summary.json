@@ -1,0 +1,15 @@
+{
+  "model": "deepseek/deepseek-flash",
+  "mode": "few_shot",
+  "status": "concluido",
+  "selected": 6,
+  "records": 120,
+  "ok": 120,
+  "errors": 0,
+  "parse_errors": 0,
+  "total_latency_s": 334.047,
+  "mean_latency_s": 2.784,
+  "total_cost_usd": 0,
+  "started_at": "2026-11-03T03:39:12.912198+00:00",
+  "finished_at": "2026-11-03T03:39:31.309204+00:00"
+}

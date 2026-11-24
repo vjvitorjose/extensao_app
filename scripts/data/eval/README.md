@@ -18,6 +18,11 @@ o mesmo gabarito anotado manualmente.
 | `runs/` | Respostas brutas por modelo |
 | `reports/` | Relatórios `.md` e `.json` |
 
+Os três runs principais (`deepseek_flash_compact`, `gemini_3_1_flash_lite_compact`
+e `ollama_qwen3_8b_compact`, com `.jsonl`, `.meta.json` e `.summary.json`) são
+versionados. Arquivos com prefixo `_` (probes/smoke) e o restante de
+`scripts/data/` continuam fora do Git.
+
 ## Provedores
 
 ```powershell

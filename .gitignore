@@ -49,9 +49,31 @@ app.*.map.json
 .vercel
 .env*.local
 
-# Dados gerados pelos scrapers (nao versionar conteudo de terceiros)
-scripts/data/
+# Dados gerados pelos scrapers (nao versionar conteudo de terceiros).
+# O padrao ignora o conteudo, mas permite reabrir excecoes abaixo.
+scripts/data/*
+!scripts/data/eval/
+scripts/data/eval/*
+# Excecao: respostas brutas das LLMs na avaliacao (runs principais e metadados).
+!scripts/data/eval/runs/
+scripts/data/eval/runs/*
+!scripts/data/eval/runs/deepseek_flash_compact.jsonl
+!scripts/data/eval/runs/deepseek_flash_compact.meta.json
+!scripts/data/eval/runs/deepseek_flash_compact.summary.json
+!scripts/data/eval/runs/gemini_3_1_flash_lite_compact.jsonl
+!scripts/data/eval/runs/gemini_3_1_flash_lite_compact.meta.json
+!scripts/data/eval/runs/gemini_3_1_flash_lite_compact.summary.json
+!scripts/data/eval/runs/ollama_qwen3_8b_compact.jsonl
+!scripts/data/eval/runs/ollama_qwen3_8b_compact.meta.json
+!scripts/data/eval/runs/ollama_qwen3_8b_compact.summary.json
 
 # Cache Python
 scripts/populators/__pycache__/
 scripts/scrapers/__pycache__/
+
+# Ambiente virtual dos scrapers
+scripts/.venv/
+
+# Perfil autenticado do Facebook. Contem a sessao da conta (cookies e local
+# storage) no formato em que o Chromium a persiste. Nunca versionar.
+scripts/scrapers/fb_profile/
